@@ -7,6 +7,5 @@ next-env.d.ts
 .env.local
 .env.*.local
 
-# Generated from the API. Regenerate with `npm run gen:api` while the API is running.
 test-results/
 playwright-report/
