@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
-import { FileText, Plus, Trash, Zap } from '@/components/icons';
+import { FileText, Plus, Trash, Upload, Zap } from '@/components/icons';
 import type { PagedResponse, ProblemDetails, ResumeSummaryResponse } from '@/lib/contracts';
 import { plural, relativeTime } from '@/lib/format';
 
@@ -109,10 +109,16 @@ export function ResumesScreen() {
               : `${plural(resumes.length, 'CV')} · each one scores separately against a posting`}
           </p>
         </div>
-        <Link href="/analysis" className="btn btnPrimary">
-          <Zap size={14} />
-          New analysis
-        </Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link href="/resumes/import" className="btn">
+            <Upload size={14} />
+            Import a CV
+          </Link>
+          <Link href="/analysis" className="btn btnPrimary">
+            <Zap size={14} />
+            New analysis
+          </Link>
+        </div>
       </div>
 
       {error && (
