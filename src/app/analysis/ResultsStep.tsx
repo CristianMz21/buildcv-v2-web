@@ -6,7 +6,7 @@ import { bandCopy, bandTone, missingSkills, sectionLabel, toPercent } from '@/li
 
 import styles from './analysis.module.css';
 import { Notice } from './Notice';
-import { ScoreRing } from './ScoreRing';
+import { ScoreRing } from '@/components/ScoreRing';
 
 /** A section is a result only when it carried weight. Below this it is treated as unmeasured. */
 const MEASURED = 0;

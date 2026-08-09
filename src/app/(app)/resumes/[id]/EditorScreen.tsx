@@ -137,10 +137,17 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
             <h1 className={styles.title}>{resume.contactInformation.fullName}</h1>
             <p className={styles.subtitle}>Edited {relativeTime(resume.updatedAt)}</p>
           </div>
-          <Link href="/analysis" className="btn btnPrimary">
-            <Zap size={14} />
-            Analyze against a job
-          </Link>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {/* Readability first in reading order but secondary in weight: it needs no posting, so it
+                is the answer available right now, while an analysis needs a job to score against. */}
+            <Link href={`/resumes/${resumeId}/readability`} className="btn">
+              How it reads
+            </Link>
+            <Link href="/analysis" className="btn btnPrimary">
+              <Zap size={14} />
+              Analyze against a job
+            </Link>
+          </div>
         </div>
       </div>
 

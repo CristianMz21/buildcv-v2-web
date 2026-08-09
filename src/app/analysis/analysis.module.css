@@ -426,31 +426,7 @@
   text-align: center;
 }
 
-.ringWrap {
-  position: relative;
-  margin: 0 auto 16px;
-}
-
-.ringCenter {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.ringValue {
-  font: 700 40px/1 var(--font);
-  letter-spacing: -0.03em;
-}
-
-.ringCaption {
-  font: 500 11.5px var(--font);
-  color: var(--fg-muted);
-  margin-top: 4px;
-  letter-spacing: 0.04em;
-}
+/* The ring's own styles moved with it to components/ScoreRing.module.css. */
 
 .bandPill {
   display: inline-flex;

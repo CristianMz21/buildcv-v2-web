@@ -3,7 +3,7 @@
 import { Check } from '@/components/icons';
 
 import styles from './analysis.module.css';
-import { ScoreRing } from './ScoreRing';
+import { ScoreRing } from '@/components/ScoreRing';
 
 /**
  * The two requests that actually happen, and nothing else.

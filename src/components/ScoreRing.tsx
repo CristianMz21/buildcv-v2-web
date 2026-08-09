@@ -1,4 +1,4 @@
-import styles from './analysis.module.css';
+import styles from './ScoreRing.module.css';
 
 interface ScoreRingProps {
   /** 0..100. */
@@ -12,11 +12,15 @@ interface ScoreRingProps {
 }
 
 /**
- * The dial from the source design, with the dash arithmetic derived rather than hard-coded.
+ * The dial, with the dash arithmetic derived rather than hard-coded.
  *
- * The original carried `stroke-dasharray="402.1"` as a literal — the circumference of one particular
- * radius — so changing the size silently produced a ring that filled to the wrong fraction. Here the
- * circumference comes from the radius that is actually drawn, and the two cannot disagree.
+ * The source design carried `stroke-dasharray="402.1"` as a literal — the circumference of one
+ * particular radius — so changing the size silently produced a ring that filled to the wrong
+ * fraction. Here the circumference comes from the radius that is actually drawn, and the two cannot
+ * disagree.
+ *
+ * Shared by the match score and the readability score. They are DIFFERENT MEASUREMENTS and must never
+ * be added together; sharing the way a number is drawn is not the same as blending what it means.
  */
 export function ScoreRing({
   value,
@@ -33,7 +37,7 @@ export function ScoreRing({
   const offset = circumference * (1 - clamped / 100);
 
   return (
-    <div className={styles.ringWrap} style={{ width: size, height: size }}>
+    <div className={styles.wrap} style={{ width: size, height: size }}>
       <svg
         width={size}
         height={size}
@@ -63,11 +67,11 @@ export function ScoreRing({
           style={{ transition: 'stroke-dashoffset 1s cubic-bezier(.4,0,.2,1)' }}
         />
       </svg>
-      <div className={styles.ringCenter}>
-        <span className={styles.ringValue} style={{ color, fontSize: size < 130 ? 24 : 40 }}>
+      <div className={styles.center}>
+        <span className={styles.value} style={{ color, fontSize: size < 130 ? 24 : 40 }}>
           {label}
         </span>
-        {caption && <span className={styles.ringCaption}>{caption}</span>}
+        {caption && <span className={styles.caption}>{caption}</span>}
       </div>
     </div>
   );

@@ -119,6 +119,60 @@ export function sectionLabel(section: SectionName | string): string {
 }
 
 /**
+ * The same bands, said about a CV rather than about a pairing.
+ *
+ * `bandCopy` calls them a match, because that is what an analysis measures. A readability run compares
+ * the CV against nothing — there is no posting — so "weak match" would name a comparison that did not
+ * happen. The thresholds are the same; the subject is not.
+ */
+export function readabilityBandCopy(band: ScoreBand): string {
+  switch (band) {
+    case 'Strong':
+      return 'Reads well — 80 or above';
+    case 'Good':
+      return 'Reads adequately — 60 to 79';
+    case 'Medium':
+      return 'Hard to read — 40 to 59';
+    case 'Low':
+      return 'Hard to read — below 40';
+    default:
+      return band;
+  }
+}
+
+/**
+ * The five readability sections, said the way a candidate would.
+ *
+ * `AtsParseability` in particular: the enum name is about a parser, but what it grades is the FILE the
+ * CV was imported from — so the label says document, which is the thing the advice tells them to
+ * re-export.
+ */
+const READABILITY_LABELS: Record<string, string> = {
+  Completeness: 'Completeness',
+  Contact: 'Contact details',
+  Achievements: 'Achievements',
+  Chronology: 'Work history',
+  AtsParseability: 'Document parseability',
+};
+
+export function readabilitySectionLabel(section: string): string {
+  return READABILITY_LABELS[section] ?? section;
+}
+
+/**
+ * Why a readability section could not be measured.
+ *
+ * A weight of 0 means the section was renormalized out, and the two reasons are different enough that
+ * one sentence for both would be wrong: parseability grades an uploaded document, so a CV typed by
+ * hand has no document to grade — that is not a failing, and it is why such a CV can still reach 100.
+ */
+export function unmeasuredReason(section: string): string {
+  return section === 'AtsParseability'
+    ? 'this CV was typed rather than imported, so there is no document to grade'
+    : 'nothing in this CV could be measured for it';
+}
+
+/**
  * What to call a CV in a list.
  *
  * `Resume` has NO name, title or label — the aggregate simply does not carry one, so there is
