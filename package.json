@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
     "gen:api": "curl -fsS \"${BUILDCV_API_ORIGIN:-http://localhost:5062}/openapi/v1.json\" -o openapi.json && openapi-typescript openapi.json -o src/lib/api-schema.d.ts",
     "gen:api:check": "npm run gen:api && git diff --exit-code -- openapi.json src/lib/api-schema.d.ts"
   },
@@ -19,6 +20,7 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "22.10.5",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",

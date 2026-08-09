@@ -11,7 +11,36 @@ import { readSession, secondsUntilExpiry, writeSession, type Session } from './s
  * the browser.
  */
 
-const API_ORIGIN = (process.env.BUILDCV_API_ORIGIN ?? 'http://localhost:5001').replace(/\/+$/, '');
+/**
+ * REFUSES TO START WITHOUT IT IN PRODUCTION, rather than falling back.
+ *
+ * The localhost default is a development convenience, and inherited by a deployed host it becomes a
+ * silent outage: every call dials a port nothing is listening on, every screen reports a network
+ * error, and no line anywhere says the origin was never configured.
+ *
+ * This check runs at module load, which is LAZY — this module is not loaded until a route handler
+ * first runs. `instrumentation.ts` imports it at server start so the failure lands there instead, on
+ * a deploy rather than on a user's first sign-in.
+ *
+ * The dev default is 5062 because that is the port `dotnet run` binds from the API's launch
+ * settings — `ASPNETCORE_URLS` does not override it.
+ */
+function resolveApiOrigin(): string {
+  const configured = process.env.BUILDCV_API_ORIGIN;
+
+  if (!configured) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'BUILDCV_API_ORIGIN is required. It is the origin of BuildCv.Api and has no safe default.',
+      );
+    }
+    return 'http://localhost:5062';
+  }
+
+  return configured.replace(/\/+$/, '');
+}
+
+const API_ORIGIN = resolveApiOrigin();
 
 /**
  * The ASP.NET Core development certificate is self-signed, and Node rejects it. This is the blunt
