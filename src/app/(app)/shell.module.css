@@ -1,0 +1,197 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+/*
+ * The sidebar becomes a top strip rather than disappearing. A drawer would need a trigger, a focus
+ * trap and an escape key to be usable, and none of that is worth building for four links.
+ */
+@media (max-width: 860px) {
+  .shell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 20px 20px 16px;
+}
+
+.mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 14px var(--font);
+  flex-shrink: 0;
+}
+
+.brandName {
+  font: 700 15px var(--font);
+  letter-spacing: -0.02em;
+}
+
+.cta {
+  margin: 0 12px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #fff;
+  font: 600 13px var(--font);
+  transition: background 0.15s;
+}
+
+.cta:hover {
+  background: var(--primary-hover);
+  color: #fff;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font: 500 13.5px var(--font);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.navLink:hover {
+  background: var(--border-soft);
+  color: var(--fg);
+}
+
+.navLinkActive {
+  background: var(--border-soft);
+  color: var(--fg);
+}
+
+/*
+ * Stacked, not a row. An email is long and a sidebar is 240px: laid out beside a "Sign out" button the
+ * two overlapped, which is what running it showed. Giving the identity its own line means a long
+ * address truncates instead of colliding with the control next to it.
+ */
+.footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footerIdentity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .footer {
+    margin-top: 0;
+    border-top: none;
+  }
+}
+
+.avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary-bg);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 12px var(--font);
+  flex-shrink: 0;
+}
+
+/* A column: the two spans are inline by default and ran together on one line. */
+.identity {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.email {
+  font: 600 12.5px var(--font);
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role {
+  font: 400 12px var(--font);
+  color: var(--fg-muted);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+@media (max-width: 860px) {
+  .content {
+    padding: 20px 16px;
+  }
+}

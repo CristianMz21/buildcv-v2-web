@@ -184,6 +184,38 @@ button {
   font-size: 14px;
 }
 
+/*
+ * Shared because every screen has something to say that is not a result: a refusal, a limit, a
+ * consequence. Kept global rather than per-module so the same message reads the same everywhere.
+ */
+.notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: 400 12.5px/1.6 var(--font);
+  margin-bottom: 16px;
+}
+
+.noticeInfo {
+  background: var(--primary-bg);
+  color: #1e3a8a;
+  border: 1px solid #dbeafe;
+}
+
+.noticeWarn {
+  background: var(--warn-bg);
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.noticeError {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+  border: 1px solid var(--bad-border);
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

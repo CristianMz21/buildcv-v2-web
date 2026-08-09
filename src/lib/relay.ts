@@ -3,6 +3,7 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 
 import { NoSessionError } from './backend';
+import { clearSession } from './session';
 
 /**
  * Hands an upstream BuildCv.Api response back to the browser unchanged.
@@ -37,6 +38,16 @@ export async function withSession(handler: () => Promise<NextResponse>): Promise
     return await handler();
   } catch (error) {
     if (error instanceof NoSessionError) {
+      // THE COOKIES GO WITH THE 401, and leaving them was an infinite redirect loop rather than an
+      // untidiness. The page gates check that a session cookie EXISTS, not that it still works, so a
+      // refresh token the API no longer accepts sent the browser round forever: /login sees a cookie
+      // and forwards into the app, the app's first call 401s and sends it back to /login. Measured at
+      // 184 requests before the tab was closed.
+      //
+      // NoSessionError means the stored credentials are unusable — either absent, or a refresh that
+      // the API refused — so there is nothing here worth keeping and every reason not to.
+      await clearSession();
+
       return NextResponse.json(
         { status: 401, title: 'Unauthorized', detail: 'Your session has ended. Sign in again.' },
         { status: 401, headers: { 'content-type': 'application/problem+json' } },
