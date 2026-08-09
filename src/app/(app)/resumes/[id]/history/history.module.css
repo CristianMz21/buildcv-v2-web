@@ -1,0 +1,149 @@
+.head {
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0 0 4px;
+  font: 700 22px/1.2 var(--font);
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin: 0;
+  font: 400 13.5px var(--font);
+  color: var(--fg-muted);
+}
+
+.group {
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.groupTitle {
+  margin: 0;
+  font: 600 15px var(--font);
+  letter-spacing: -0.01em;
+}
+
+.groupMeta {
+  font: 400 12.5px var(--font);
+  color: var(--fg-muted);
+}
+
+.groupLead {
+  margin: 0 0 16px;
+  font: 400 12.5px var(--font);
+  color: var(--fg-muted);
+}
+
+/* Bars rather than a line: the runs are discrete events at irregular intervals, and a line between
+   two of them draws a trajectory nothing measured. */
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 110px;
+  margin-bottom: 16px;
+  padding-bottom: 2px;
+}
+
+.bar {
+  flex: 1;
+  min-width: 10px;
+  max-width: 56px;
+  border-radius: 4px 4px 2px 2px;
+  position: relative;
+  transition: opacity 0.15s;
+}
+
+.bar:hover {
+  opacity: 0.85;
+}
+
+.barLabel {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 600 11px var(--font);
+}
+
+.runs {
+  display: flex;
+  flex-direction: column;
+}
+
+.run {
+  display: grid;
+  grid-template-columns: 96px 64px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-soft);
+  font: 400 13px var(--font);
+}
+
+@media (max-width: 620px) {
+  .run {
+    grid-template-columns: 1fr auto;
+  }
+
+  .runDelta {
+    display: none;
+  }
+}
+
+.runDate {
+  color: var(--fg-muted);
+}
+
+.runScore {
+  font: 600 12px var(--font);
+  border-radius: 6px;
+  padding: 3px 8px;
+  text-align: center;
+}
+
+.runDelta {
+  font: 600 12.5px var(--font);
+}
+
+.runFlags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.flag {
+  font: 600 11px var(--font);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.flagStale {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.flagVersion {
+  color: var(--bad-fg);
+  background: var(--bad-bg);
+}
+
+.empty {
+  text-align: center;
+  padding: 40px 24px;
+  color: var(--fg-muted);
+  font: 400 13.5px/1.7 var(--font);
+}
