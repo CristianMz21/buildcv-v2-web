@@ -1,12 +1,14 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 import { readSession } from '@/lib/session';
 
-import { LoginForm } from './LoginForm';
-import styles from './login.module.css';
+import { RegisterForm } from './RegisterForm';
+import styles from '../login/login.module.css';
 
-export default async function LoginPage() {
+export const metadata: Metadata = { title: 'Create an account · BuildCv' };
+
+export default async function RegisterPage() {
   if (await readSession()) redirect('/resumes');
 
   return (
@@ -16,14 +18,10 @@ export default async function LoginPage() {
           <span className={styles.mark} aria-hidden="true">
             B
           </span>
-          <h1 className={styles.title}>Sign in to BuildCv</h1>
+          <h1 className={styles.title}>Create your account</h1>
         </div>
 
-        <LoginForm />
-
-        <p className={styles.hint} style={{ textAlign: 'center' }}>
-          New here? <Link href="/register">Create an account</Link>
-        </p>
+        <RegisterForm />
       </div>
     </main>
   );

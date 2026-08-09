@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { FileText } from '@/components/icons';
+import { FileText, Settings } from '@/components/icons';
 
 import styles from './shell.module.css';
 
@@ -14,7 +14,10 @@ import styles from './shell.module.css';
  * them has an endpoint behind it, and a nav link to a screen that cannot be built is worse than an
  * absent one: it is a promise the product does not keep, placed where a user will click it first.
  */
-const LINKS = [{ href: '/resumes', label: 'CVs', Icon: FileText }] as const;
+const LINKS = [
+  { href: '/resumes', label: 'CVs', Icon: FileText },
+  { href: '/settings', label: 'Settings', Icon: Settings },
+] as const;
 
 export function NavLinks() {
   const pathname = usePathname();

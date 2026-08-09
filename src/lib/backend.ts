@@ -116,6 +116,23 @@ export async function login(email: string, password: string): Promise<LoginOutco
 }
 
 /**
+ * Creates an account. **Anonymous**, so it cannot go through `apiFetch` — there is no session yet,
+ * and `apiFetch` refuses without one.
+ *
+ * No role is sent. The API defaults to Candidate, and only Candidate and Recruiter are
+ * self-assignable anyway; putting the choice on a public form would be a privilege question asked of
+ * a stranger.
+ */
+export async function register(email: string, password: string): Promise<Response> {
+  return fetch(apiUrl('/auth/register'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, password }),
+    cache: 'no-store',
+  });
+}
+
+/**
  * Trades the stored refresh token for a fresh pair, persisting both.
  *
  * The refresh token ROTATES — the API issues a new one on every successful refresh — so failing to

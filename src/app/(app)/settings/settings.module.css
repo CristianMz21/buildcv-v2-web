@@ -1,0 +1,93 @@
+.narrow {
+  max-width: 640px;
+}
+
+.head {
+  margin-bottom: 20px;
+}
+
+.title {
+  margin: 0 0 4px;
+  font: 700 22px/1.2 var(--font);
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  margin: 0;
+  font: 400 13.5px var(--font);
+  color: var(--fg-muted);
+}
+
+.panel {
+  padding: 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panelTitle {
+  margin: 0;
+  font: 600 15px var(--font);
+  letter-spacing: -0.01em;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.factLabel {
+  font: 500 13px var(--font);
+  color: var(--fg-muted);
+}
+
+.factValue {
+  margin: 0;
+  font: 400 13px var(--font);
+  color: var(--fg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font: 600 12.5px var(--font);
+}
+
+.input {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font: 400 13.5px var(--font);
+  color: var(--fg);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-ring-soft);
+}
+
+.note {
+  font: 400 12px/1.55 var(--font);
+  color: var(--fg-faint);
+  margin: 0;
+}
+
+.error {
+  background: var(--bad-bg);
+  border: 1px solid var(--bad-border);
+  color: var(--bad-fg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 400 12.5px/1.5 var(--font);
+  margin: 0;
+}
