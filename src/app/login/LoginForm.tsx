@@ -40,7 +40,9 @@ export function LoginForm() {
         return;
       }
 
-      router.replace('/analysis');
+      // The CV list, not the analysis flow. Analysis needs a CV to score and a posting to score it
+      // against; landing there first asks a new account for both before it has either.
+      router.replace('/resumes');
       router.refresh();
     } catch {
       setError('Could not reach the server.');

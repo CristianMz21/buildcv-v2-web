@@ -6,7 +6,7 @@ import { LoginForm } from './LoginForm';
 import styles from './login.module.css';
 
 export default async function LoginPage() {
-  if (await readSession()) redirect('/analysis');
+  if (await readSession()) redirect('/resumes');
 
   return (
     <main className={styles.wrap}>
@@ -21,8 +21,8 @@ export default async function LoginPage() {
         <LoginForm />
 
         <p className={styles.hint}>
-          Accounts are created through <code>POST /v1/auth/register</code>. There is no sign-up screen
-          yet — this build implements the analysis flow only.
+          Accounts are created through <code>POST /v1/auth/register</code> — there is no sign-up
+          screen yet.
         </p>
       </div>
     </main>

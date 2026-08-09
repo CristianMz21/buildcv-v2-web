@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, Zap } from '@/components/icons';
-import type { ResumeResponse } from '@/lib/contracts';
+import type { ResumeSummaryResponse } from '@/lib/contracts';
 import { plural, relativeTime, resumeLabel } from '@/lib/format';
 
 import styles from './analysis.module.css';
@@ -15,7 +15,7 @@ import { Notice } from './Notice';
 const USEFUL_JD_LENGTH = 80;
 
 interface InputsStepProps {
-  resumes: ResumeResponse[] | null;
+  resumes: ResumeSummaryResponse[] | null;
   resumesError: string | null;
   selectedResumeId: string | null;
   onSelectResume: (id: string) => void;
@@ -93,10 +93,12 @@ export function InputsStep({
                         the wire to fill it: a match score needs a job posting, and the readability
                         score comes from a POST that creates a report — not a field on a list row.
                       */}
+                      {/* Counts, not lengths: a list row carries the SIZE of each section and never
+                          the entries, so there is nothing here to take a length of. */}
                       <span className={styles.resumeMeta}>
                         Edited {relativeTime(resume.updatedAt)} ·{' '}
-                        {plural(resume.skills.length, 'skill')} ·{' '}
-                        {plural(resume.experiences.length, 'role')}
+                        {plural(resume.counts.skills, 'skill')} ·{' '}
+                        {plural(resume.counts.experiences, 'role')}
                       </span>
                     </span>
                   </button>

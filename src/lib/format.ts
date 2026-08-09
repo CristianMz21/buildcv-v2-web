@@ -1,7 +1,7 @@
 import type {
   RecommendationPriority,
   RecommendationResponse,
-  ResumeResponse,
+  ResumeSummaryResponse,
   ScoreBand,
   SectionName,
 } from './contracts';
@@ -175,17 +175,17 @@ export function unmeasuredReason(section: string): string {
 /**
  * What to call a CV in a list.
  *
- * `Resume` has NO name, title or label — the aggregate simply does not carry one, so there is
- * nothing to read and nothing worth inventing. The most recent position is the closest honest stand-in
- * (it is what distinguishes one of a candidate's CVs from another), with the contact name as the
- * fallback for a CV that has no work history yet.
+ * THE CONTACT NAME, because a `Resume` has no name, title or label of its own — the aggregate does
+ * not carry one. An earlier version reached for the most recent job title instead, which read better
+ * and stopped working the day `GET /v1/resumes` was narrowed to a summary: a list row has no
+ * experiences to read a title out of. Reading only what a summary actually carries is what keeps this
+ * honest across both shapes.
+ *
+ * The consequence is that every CV a candidate owns reads the same here. That is a real gap and the
+ * fix is a name on the aggregate, not a cleverer guess in this function.
  */
-export function resumeLabel(resume: ResumeResponse): string {
-  const mostRecent = [...resume.experiences].sort((a, b) =>
-    b.period.start.localeCompare(a.period.start),
-  )[0];
-
-  return mostRecent?.position ?? resume.contactInformation.fullName;
+export function resumeLabel(resume: Pick<ResumeSummaryResponse, 'fullName'>): string {
+  return resume.fullName;
 }
 
 /** English-only, and only for the regular nouns this screen counts. */

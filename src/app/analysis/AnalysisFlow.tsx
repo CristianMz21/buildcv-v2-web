@@ -10,7 +10,7 @@ import type {
   JobPostingResponse,
   PagedResponse,
   ProblemDetails,
-  ResumeResponse,
+  ResumeSummaryResponse,
 } from '@/lib/contracts';
 import { resumeLabel } from '@/lib/format';
 
@@ -61,7 +61,7 @@ export function AnalysisFlow() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  const [resumes, setResumes] = useState<ResumeResponse[] | null>(null);
+  const [resumes, setResumes] = useState<ResumeSummaryResponse[] | null>(null);
   const [resumesError, setResumesError] = useState<string | null>(null);
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
 
@@ -88,7 +88,7 @@ export function AnalysisFlow() {
       try {
         // The first page only. Paging exists on this route and the cursor is forwarded by the BFF;
         // a "load more" control belongs here the day a candidate has more than a screenful of CVs.
-        const page = await readJson<PagedResponse<ResumeResponse>>(
+        const page = await readJson<PagedResponse<ResumeSummaryResponse>>(
           await fetch('/api/resumes?limit=20'),
         );
 
