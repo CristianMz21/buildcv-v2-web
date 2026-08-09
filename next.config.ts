@@ -37,7 +37,24 @@ const CSP = [
   "object-src 'none'",
 ].join('; ');
 
+// HSTS, IN PRODUCTION ONLY.
+//
+// The session cookies are already `secure` on a deployed host, but that only stops the browser
+// SENDING them over http — it does not stop the request being made. This closes the gap they cannot:
+// after the first response, the origin is never dialled in the clear again.
+//
+// Omitted in development on purpose: `next dev` serves http on localhost, and a browser that has
+// seen this header once will refuse to load it.
+//
+// No `preload`. The preload list is slow and awkward to get off, and committing to it before the
+// domain has served a single request is a decision made with no evidence.
+const HSTS =
+  process.env.NODE_ENV === 'production'
+    ? [{ key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' }]
+    : [];
+
 const SECURITY_HEADERS = [
+  ...HSTS,
   { key: 'Content-Security-Policy', value: CSP },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'no-referrer' },
