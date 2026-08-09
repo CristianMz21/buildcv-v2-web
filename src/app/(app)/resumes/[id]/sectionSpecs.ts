@@ -11,16 +11,29 @@ import type { ResumeResponse, ResumeSection } from '@/lib/contracts';
  * The field names are the API's own, verbatim from the generated request types, so a form's state IS
  * the request body. Renaming one here without renaming it there produces a 400 at the first save
  * rather than a silently dropped field.
+ *
+ * `read` is the other direction, and it exists because THE TWO SHAPES ARE NOT THE SAME. A request says
+ * `skillName`, `start` and `end`; the response says `name` and nests the pair under `period`. Editing
+ * an entry means seeding the request's fields from the response's, so every field whose two names
+ * differ states its reader here — the alternative was addressing them by name and quietly seeding a
+ * blank, which reads as "this entry had no start date" and clears it on save.
  */
 
+interface Named {
+  name: string;
+  label: string;
+  /** Reads this field's current value off a RESPONSE entry. Defaults to the property of the same name. */
+  read?: (entry: Record<string, unknown>) => string;
+}
+
 export type FieldSpec =
-  | { kind: 'text'; name: string; label: string; required?: boolean; placeholder?: string }
-  | { kind: 'textarea'; name: string; label: string; rows?: number; placeholder?: string }
-  | { kind: 'date'; name: string; label: string; required?: boolean }
-  | { kind: 'number'; name: string; label: string }
-  | { kind: 'select'; name: string; label: string; options: readonly string[] }
+  | ({ kind: 'text'; required?: boolean; placeholder?: string } & Named)
+  | ({ kind: 'textarea'; rows?: number; placeholder?: string } & Named)
+  | ({ kind: 'date'; required?: boolean } & Named)
+  | ({ kind: 'number' } & Named)
+  | ({ kind: 'select'; options: readonly string[] } & Named)
   /** A textarea split on newlines into a string[]. Highlights and technologies are lists. */
-  | { kind: 'lines'; name: string; label: string; rows?: number; placeholder?: string };
+  | ({ kind: 'lines'; rows?: number; placeholder?: string } & Named);
 
 export interface SectionSpec {
   /** Plural, as a heading. */
@@ -32,6 +45,64 @@ export interface SectionSpec {
   describe: (entry: Record<string, unknown>) => string;
   /** The line under it, or null. */
   detail?: (entry: Record<string, unknown>) => string | null;
+  /**
+   * Response properties this section's request has no field for, so editing an entry CLEARS them.
+   *
+   * Two of them, and both were only ever writable by importing a document: an experience's bullet
+   * points and a skill's alternative spellings. Both are read by the engines — Achievements is
+   * computed from nothing but the bullet points, and `ScoringRules` matches a requirement against the
+   * spellings — so losing them silently would move a candidate's scores with no edit that explains it.
+   * The editor names them before saving instead. Widening the two requests is the real fix and is a
+   * change to the API, not to this screen.
+   */
+  clears?: readonly { key: string; noun: string }[];
+}
+
+/** A `yyyy-MM-dd` string, which is the only precision `<input type="date">` can hold. */
+const isFullDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+/**
+ * The request body for one entry, seeded from that entry as the API returned it.
+ *
+ * A date the input cannot hold comes back BLANK rather than truncated: `PartialDate` allows `2015-06`
+ * and `2015`, and there is no way to show either in a date picker. Blank makes a required start read
+ * as missing, which the form refuses to submit — so the candidate is asked for the day rather than
+ * having one invented for them.
+ */
+export function formFrom(entry: Record<string, unknown>, spec: SectionSpec): Record<string, string> {
+  const draft: Record<string, string> = {};
+
+  for (const field of spec.fields) {
+    const value = field.read ? field.read(entry) : text(entry, field.name);
+    draft[field.name] = field.kind === 'date' && !isFullDate(value) ? '' : value;
+  }
+
+  return draft;
+}
+
+/**
+ * What editing this entry would lose, in the candidate's words, or an empty list.
+ *
+ * Both causes are real and neither is avoidable on this screen: a value the request cannot express,
+ * and a date the request CAN express but the picker cannot show.
+ */
+export function losses(entry: Record<string, unknown>, spec: SectionSpec): string[] {
+  const lost: string[] = [];
+
+  for (const { key, noun } of spec.clears ?? []) {
+    const value = entry[key];
+    if (Array.isArray(value) && value.length > 0) lost.push(`its ${noun} (${value.length})`);
+  }
+
+  for (const field of spec.fields) {
+    if (field.kind !== 'date') continue;
+    const value = field.read ? field.read(entry) : text(entry, field.name);
+    if (value !== '' && !isFullDate(value)) {
+      lost.push(`the precision of ${field.label.toLowerCase()} — ${value} must be given as a full date`);
+    }
+  }
+
+  return lost;
 }
 
 const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'] as const;
@@ -49,6 +120,18 @@ function period(entry: Record<string, unknown>): string {
   return `${range.start} – ${range.end ?? 'present'}`;
 }
 
+/** One end of a nested date range. The request flattens these into two fields; the response does not. */
+const rangeEnd = (property: string, end: 'start' | 'end') =>
+  (entry: Record<string, unknown>): string => {
+    const range = entry[property] as { start?: string; end?: string | null } | null | undefined;
+    return range?.[end] ?? '';
+  };
+
+/** A `lines` field's current value: one item per line, which is how the textarea shows it. */
+const lines = (property: string) =>
+  (entry: Record<string, unknown>): string =>
+    Array.isArray(entry[property]) ? (entry[property] as string[]).join('\n') : '';
+
 export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
   experiences: {
     label: 'Experience',
@@ -58,10 +141,11 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
       { kind: 'select', name: 'type', label: 'Type', options: EXPERIENCE_TYPES },
       { kind: 'text', name: 'organization', label: 'Company', required: true },
       { kind: 'text', name: 'position', label: 'Title', required: true },
-      { kind: 'date', name: 'start', label: 'Start', required: true },
-      { kind: 'date', name: 'end', label: 'End (blank if current)' },
+      { kind: 'date', name: 'start', label: 'Start', required: true, read: rangeEnd('period', 'start') },
+      { kind: 'date', name: 'end', label: 'End (blank if current)', read: rangeEnd('period', 'end') },
       { kind: 'textarea', name: 'summary', label: 'Summary', rows: 3 },
     ],
+    clears: [{ key: 'highlights', noun: 'bullet points' }],
     describe: (entry) => `${text(entry, 'position')} · ${text(entry, 'organization')}`,
     detail: (entry) => `${text(entry, 'type')} · ${period(entry)}`,
   },
@@ -74,8 +158,8 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
       { kind: 'text', name: 'degree', label: 'Degree' },
       { kind: 'text', name: 'fieldOfStudy', label: 'Field of study' },
       { kind: 'select', name: 'level', label: 'Level', options: EDUCATION_LEVELS },
-      { kind: 'date', name: 'start', label: 'Start', required: true },
-      { kind: 'date', name: 'end', label: 'End' },
+      { kind: 'date', name: 'start', label: 'Start', required: true, read: rangeEnd('period', 'start') },
+      { kind: 'date', name: 'end', label: 'End', read: rangeEnd('period', 'end') },
       { kind: 'text', name: 'grade', label: 'Grade' },
     ],
     describe: (entry) => text(entry, 'institution'),
@@ -86,10 +170,11 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     label: 'Skills',
     hint: 'Mirror the wording of your target postings — matching is on the phrase.',
     fields: [
-      { kind: 'text', name: 'skillName', label: 'Skill', required: true },
+      { kind: 'text', name: 'skillName', label: 'Skill', required: true, read: (entry) => text(entry, 'name') },
       { kind: 'select', name: 'level', label: 'Level', options: SKILL_LEVELS },
       { kind: 'number', name: 'yearsOfExperience', label: 'Years' },
     ],
+    clears: [{ key: 'keywords', noun: 'alternative spellings' }],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => text(entry, 'level') || null,
   },
@@ -99,13 +184,13 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     hint: 'A project with neither technologies nor highlights is not counted.',
     fields: [
       { kind: 'text', name: 'name', label: 'Name', required: true },
-      { kind: 'date', name: 'start', label: 'Start', required: true },
-      { kind: 'date', name: 'end', label: 'End' },
+      { kind: 'date', name: 'start', label: 'Start', required: true, read: rangeEnd('period', 'start') },
+      { kind: 'date', name: 'end', label: 'End', read: rangeEnd('period', 'end') },
       { kind: 'textarea', name: 'description', label: 'Description', rows: 2 },
       { kind: 'text', name: 'repositoryUrl', label: 'Repository URL' },
       { kind: 'text', name: 'liveDemoUrl', label: 'Live demo URL' },
-      { kind: 'lines', name: 'technologies', label: 'Technologies', placeholder: 'One per line' },
-      { kind: 'lines', name: 'highlights', label: 'Highlights', placeholder: 'One per line' },
+      { kind: 'lines', name: 'technologies', label: 'Technologies', placeholder: 'One per line', read: lines('technologies') },
+      { kind: 'lines', name: 'highlights', label: 'Highlights', placeholder: 'One per line', read: lines('highlights') },
     ],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => period(entry) || null,
@@ -119,8 +204,8 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
       { kind: 'text', name: 'issuer', label: 'Issuer', required: true },
       { kind: 'text', name: 'credentialId', label: 'Credential ID' },
       { kind: 'text', name: 'credentialUrl', label: 'Credential URL' },
-      { kind: 'date', name: 'validityStart', label: 'Valid from' },
-      { kind: 'date', name: 'validityEnd', label: 'Valid until' },
+      { kind: 'date', name: 'validityStart', label: 'Valid from', read: rangeEnd('validityPeriod', 'start') },
+      { kind: 'date', name: 'validityEnd', label: 'Valid until', read: rangeEnd('validityPeriod', 'end') },
     ],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => text(entry, 'issuer') || null,
@@ -170,7 +255,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     hint: 'Not scored against a posting; it counts toward how complete the CV reads.',
     fields: [
       { kind: 'text', name: 'name', label: 'Interest', required: true },
-      { kind: 'lines', name: 'keywords', label: 'Keywords', placeholder: 'One per line' },
+      { kind: 'lines', name: 'keywords', label: 'Keywords', placeholder: 'One per line', read: lines('keywords') },
     ],
     describe: (entry) => text(entry, 'name'),
   },

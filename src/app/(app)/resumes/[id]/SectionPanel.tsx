@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 
-import { Plus, Trash } from '@/components/icons';
+import { FileText, Plus, Trash } from '@/components/icons';
 import type { ResumeSection } from '@/lib/contracts';
 
 import styles from './editor.module.css';
-import type { FieldSpec, SectionSpec } from './sectionSpecs';
+import { formFrom, losses, type FieldSpec, type SectionSpec } from './sectionSpecs';
 
 interface SectionPanelProps {
   section: ResumeSection;
@@ -15,8 +15,12 @@ interface SectionPanelProps {
   fieldErrors: Record<string, string[]>;
   busy: boolean;
   onAdd: (body: Record<string, unknown>) => Promise<boolean>;
+  onReplace: (itemId: number, body: Record<string, unknown>) => Promise<boolean>;
   onRemove: (itemId: number) => void;
 }
+
+/** Which form is open: none, the one that appends, or the one editing a given entry. */
+type Editing = { kind: 'closed' } | { kind: 'adding' } | { kind: 'editing'; itemId: number };
 
 /** A textarea's lines, blanks dropped. */
 const toLines = (value: string): string[] =>
@@ -32,11 +36,15 @@ function blankForm(fields: readonly FieldSpec[]): Record<string, string> {
 }
 
 /**
- * One section: what is in it, and the form that adds to it.
+ * One section: what is in it, the form that adds to it, and the form that corrects an entry.
  *
- * There is no edit-in-place, and that is the API rather than a shortcut: a CV collection is
- * append-and-remove. Correcting an entry is deleting it and adding it back, which the buttons say
- * plainly instead of offering a pencil that would do the same thing while implying it were atomic.
+ * EDITING IS ONE REQUEST, not a delete followed by an add. `PUT .../{section}/{itemId}` replaces the
+ * entry inside one transaction, which is what makes a rejected correction leave the original alone —
+ * and what makes correcting a skill possible at all, since skills refuse a duplicate name and the old
+ * entry would refuse its own replacement.
+ *
+ * The form REPLACES rather than patches, matching the route. That is why `formFrom` seeds it from the
+ * entry: a field left blank is a field cleared, so the form must start out saying what is there now.
  */
 export function SectionPanel({
   section,
@@ -45,18 +53,29 @@ export function SectionPanel({
   fieldErrors,
   busy,
   onAdd,
+  onReplace,
   onRemove,
 }: SectionPanelProps) {
   const [draft, setDraft] = useState<Record<string, string>>(() => blankForm(spec.fields));
-  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Editing>({ kind: 'closed' });
 
   const missing = spec.fields.filter(
     (field) => 'required' in field && field.required && draft[field.name]?.trim() === '',
   );
 
+  function open(target: Editing, entry?: Record<string, unknown>) {
+    setDraft(entry ? formFrom(entry, spec) : blankForm(spec.fields));
+    setEditing(target);
+  }
+
+  function close() {
+    setDraft(blankForm(spec.fields));
+    setEditing({ kind: 'closed' });
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (busy || missing.length > 0) return;
+    if (busy || missing.length > 0 || editing.kind === 'closed') return;
 
     const body: Record<string, unknown> = {};
 
@@ -71,10 +90,10 @@ export function SectionPanel({
       else body[field.name] = raw.trim();
     }
 
-    if (await onAdd(body)) {
-      setDraft(blankForm(spec.fields));
-      setOpen(false);
-    }
+    const saved =
+      editing.kind === 'adding' ? await onAdd(body) : await onReplace(editing.itemId, body);
+
+    if (saved) close();
   }
 
   return (
@@ -92,6 +111,25 @@ export function SectionPanel({
             const id = entry.id as number;
             const title = spec.describe(entry);
             const detail = spec.detail?.(entry) ?? null;
+            const willLose = losses(entry, spec);
+
+            if (editing.kind === 'editing' && editing.itemId === id) {
+              return (
+                <EntryForm
+                  key={id}
+                  spec={spec}
+                  draft={draft}
+                  fieldErrors={fieldErrors}
+                  busy={busy}
+                  missing={missing}
+                  submitLabel="Save changes"
+                  warnings={willLose}
+                  onChange={(name, value) => setDraft((current) => ({ ...current, [name]: value }))}
+                  onCancel={close}
+                  onSubmit={submit}
+                />
+              );
+            }
 
             return (
               <div key={id} className={styles.entry}>
@@ -99,6 +137,15 @@ export function SectionPanel({
                   <div className={styles.entryTitle}>{title || '—'}</div>
                   {detail && <div className={styles.entryDetail}>{detail}</div>}
                 </div>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  aria-label={`Edit ${title || 'this entry'}`}
+                  onClick={() => open({ kind: 'editing', itemId: id }, entry)}
+                >
+                  <FileText size={13} />
+                </button>
                 <button
                   type="button"
                   className="btn"
@@ -114,51 +161,109 @@ export function SectionPanel({
         </div>
       )}
 
-      {open ? (
-        <form className={styles.form} onSubmit={submit}>
-          <div className={styles.formGrid}>
-            {spec.fields.map((field) => (
-              <Field
-                key={field.name}
-                field={field}
-                value={draft[field.name] ?? ''}
-                error={fieldErrors[field.name]?.[0]}
-                onChange={(value) => setDraft((current) => ({ ...current, [field.name]: value }))}
-              />
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn" onClick={() => setOpen(false)} disabled={busy}>
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btnPrimary"
-              style={{ flex: 1 }}
-              disabled={busy || missing.length > 0}
-            >
-              {busy ? 'Saving…' : `Add to ${spec.label.toLowerCase()}`}
-            </button>
-          </div>
-
-          {missing.length > 0 && (
-            <p className={styles.fieldError}>
-              {missing.map((field) => field.label).join(', ')} required.
-            </p>
-          )}
-        </form>
+      {editing.kind === 'adding' ? (
+        <EntryForm
+          spec={spec}
+          draft={draft}
+          fieldErrors={fieldErrors}
+          busy={busy}
+          missing={missing}
+          submitLabel={`Add to ${spec.label.toLowerCase()}`}
+          warnings={[]}
+          onChange={(name, value) => setDraft((current) => ({ ...current, [name]: value }))}
+          onCancel={close}
+          onSubmit={submit}
+        />
       ) : (
-        <button type="button" className="btn" onClick={() => setOpen(true)}>
-          <Plus size={13} />
-          Add {spec.label.toLowerCase().replace(/s$/, '')}
-        </button>
+        editing.kind === 'closed' && (
+          <button type="button" className="btn" onClick={() => open({ kind: 'adding' })}>
+            <Plus size={13} />
+            Add {spec.label.toLowerCase().replace(/s$/, '')}
+          </button>
+        )
       )}
 
       {/* A field error the form has no input for would otherwise vanish; `section` catches the ones
           the API keys to the collection rather than to one of its fields. */}
       {fieldErrors[section]?.[0] && <p className={styles.fieldError}>{fieldErrors[section][0]}</p>}
     </div>
+  );
+}
+
+/**
+ * The one form both modes use.
+ *
+ * Adding and correcting differ in the button, the warnings and where the values came from — never in
+ * how a field is rendered or how a blank is read. Two forms would be two places to fix the day a
+ * `lines` field stops round-tripping.
+ */
+function EntryForm({
+  spec,
+  draft,
+  fieldErrors,
+  busy,
+  missing,
+  submitLabel,
+  warnings,
+  onChange,
+  onCancel,
+  onSubmit,
+}: {
+  spec: SectionSpec;
+  draft: Record<string, string>;
+  fieldErrors: Record<string, string[]>;
+  busy: boolean;
+  missing: readonly FieldSpec[];
+  submitLabel: string;
+  warnings: readonly string[];
+  onChange: (name: string, value: string) => void;
+  onCancel: () => void;
+  onSubmit: (event: React.FormEvent) => void;
+}) {
+  return (
+    <form className={styles.form} onSubmit={onSubmit}>
+      <div className={styles.formGrid}>
+        {spec.fields.map((field) => (
+          <Field
+            key={field.name}
+            field={field}
+            value={draft[field.name] ?? ''}
+            error={fieldErrors[field.name]?.[0]}
+            onChange={(value) => onChange(field.name, value)}
+          />
+        ))}
+      </div>
+
+      {/* Said BEFORE the save, not after: these are values this form cannot carry, so saving is the
+          moment they go. Both are read by an engine — bullet points are the whole Achievements score —
+          so a candidate who did not mean to lose them would see a score move with no edit explaining
+          it. */}
+      {warnings.length > 0 && (
+        <div className="notice noticeWarn" role="status">
+          Saving this entry clears {warnings.join(', and ')}.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="btn btnPrimary"
+          style={{ flex: 1 }}
+          disabled={busy || missing.length > 0}
+        >
+          {busy ? 'Saving…' : submitLabel}
+        </button>
+      </div>
+
+      {missing.length > 0 && (
+        <p className={styles.fieldError}>
+          {missing.map((field) => field.label).join(', ')} required.
+        </p>
+      )}
+    </form>
   );
 }
 

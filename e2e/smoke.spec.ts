@@ -27,7 +27,10 @@ const CV = [
   '',
   'EXPERIENCE',
   'Senior Engineer, Remington Rand',
-  '2019-03-01 - 2023-06-30',
+  // MONTH PRECISION, on purpose. It is the dominant format on real CVs, `PartialDate` carries it end
+  // to end, and it is what makes the editor's precision warning reachable — a date picker cannot show
+  // a month without a day.
+  '2019-03 - 2023-06',
   '',
   'SKILLS',
   'C#, Docker, SQL Server',
@@ -96,17 +99,43 @@ test('a candidate can register, import a CV, edit it and read its scores', async
     await expect(page.getByText('not the match score')).toBeVisible();
   });
 
-  await test.step('add and remove a skill', async () => {
+  await test.step('add a skill, correct it in place, and remove it', async () => {
     await page.getByRole('link', { name: 'Back to the CV' }).click();
     await page.getByRole('button', { name: /^Skills/ }).click();
 
     await page.getByRole('button', { name: 'Add skill' }).click();
-    await page.getByLabel('Skill', { exact: true }).fill('Kubernetes');
+    await page.getByLabel('Skill', { exact: true }).fill('Kubernets');
     await page.getByRole('button', { name: 'Add to skills' }).click();
-    await expect(page.getByRole('button', { name: 'Remove Kubernetes' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit Kubernets' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Edit Kubernets' }).click();
+
+    // The form starts out saying what is there now, because a PUT replaces rather than patches: a
+    // field left blank would clear itself.
+    await expect(page.getByLabel('Skill', { exact: true })).toHaveValue('Kubernets');
+
+    await page.getByLabel('Skill', { exact: true }).fill('Kubernetes');
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(page.getByRole('button', { name: 'Edit Kubernetes' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Edit Kubernets' })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Remove Kubernetes' }).click();
     await expect(page.getByRole('button', { name: 'Remove Kubernetes' })).toHaveCount(0);
+  });
+
+  await test.step('editing a month-precision role says so instead of inventing a day', async () => {
+    await page.getByRole('button', { name: /^Experience/ }).click();
+    await page.getByRole('button', { name: /^Edit Senior Engineer/ }).click();
+
+    // The CV states March 2019; a date picker cannot hold that, so the field comes back BLANK and the
+    // warning names what saving would change. Seeding it with 2019-03-01 would have been a day the
+    // candidate never wrote, silently upgrading the precision of their own history.
+    await expect(page.getByText(/2019-03 must be given as a full date/)).toBeVisible();
+    await expect(page.getByLabel('Start', { exact: true })).toHaveValue('');
+    await expect(page.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
   await test.step('name the CV, and see the name where the CV is chosen', async () => {

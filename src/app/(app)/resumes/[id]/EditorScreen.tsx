@@ -222,6 +222,9 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
               fieldErrors={fieldErrors}
               busy={busy}
               onAdd={(body) => write(`/api/resumes/${resumeId}/${pane}`, json(body))}
+              onReplace={(itemId, body) =>
+                write(`/api/resumes/${resumeId}/${pane}/${itemId}`, { ...json(body), method: 'PUT' })
+              }
               onRemove={(itemId) =>
                 void write(`/api/resumes/${resumeId}/${pane}/${itemId}`, { method: 'DELETE' })
               }
