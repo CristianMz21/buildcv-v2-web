@@ -1,0 +1,51 @@
+# The checks that can run without the other repository.
+#
+# `test:e2e` and `gen:api:check` are deliberately NOT here. Both need a running BuildCv.Api, which
+# lives in `buildcv-v2` — a job that reached for it would need credentials for that checkout, and one
+# that mocked it would assert nothing the suite exists to assert. What remains still closes the gap
+# that mattered: until this file existed, nothing ran lint or typecheck on any push at all.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Before setup-node, which needs pnpm on PATH to locate the store it caches. The version comes
+      # from the `packageManager` field in package.json, so it cannot drift from what Docker builds.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the runtime image in the Dockerfile.
+          node-version: 22
+          cache: pnpm
+
+      # --frozen-lockfile so CI cannot quietly resolve a tree the lockfile does not describe.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      # `api-schema.d.ts` is generated and never edited. This regenerates it from the COMMITTED
+      # openapi.json — no API needed — and fails on any diff, which catches the one edit that file
+      # forbids: a type widened by hand to make `tsc` agree with a screen.
+      - run: pnpm gen:types:check
+
+      # BUILDCV_API_ORIGIN is deliberately absent, exactly as in the Dockerfile: the build is
+      # hermetic because openapi.json is committed. If a change ever makes `next build` evaluate
+      # src/lib/backend.ts, this step fails on the missing-origin throw — and that failure is the
+      # point, not something to paper over with a placeholder value.
+      - run: pnpm build

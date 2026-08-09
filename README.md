@@ -35,8 +35,8 @@ decision, not a configuration fix.
 
 ```bash
 cp .env.example .env.local     # point BUILDCV_API_ORIGIN at the running API
-npm install
-npm run dev                    # http://localhost:3000
+pnpm install
+pnpm dev                       # http://localhost:3000
 ```
 
 The API lives in a **separate repository** (`buildcv-v2`). From that checkout, with the in-memory
@@ -55,13 +55,20 @@ dotnet run --project src/BuildCv.Api        # listens on :5062
 `next build` never needs a running API.
 
 ```bash
-npm run gen:api          # refetch the document and regenerate the types
-npm run gen:api:check    # the drift check: fails if either file moved
+pnpm gen:api             # refetch the document and regenerate the types
+pnpm gen:api:check       # the drift check: fails if either file moved. Needs a live API.
+pnpm gen:types:check     # regenerate from the COMMITTED openapi.json. Needs nothing.
 ```
 
-Run the check against a live API in CI. A diff means the contract changed under this client — the
-failure two repositories make possible and one made impossible, because an API change and its client
-fix can no longer be the same commit.
+Two checks, because they answer different questions. `gen:api:check` asks whether the API still
+serves the document this client was built against, and it can only be answered against a running
+server — a diff means the contract changed underneath, which is the failure two repositories make
+possible and one made impossible, because an API change and its client fix can no longer be the same
+commit.
+
+`gen:types:check` asks whether `api-schema.d.ts` is still what `openapi.json` generates. That needs
+no API, so it runs on every push (see `.github/workflows/ci.yml`), and it is what catches the one
+edit the file forbids: a type widened by hand to make `tsc` agree with a screen.
 
 **`contracts.ts` stays hand-written on top, on purpose.** It aliases the generated types so a shape
 change breaks the build, and carries what a generator strips: that a section `score` is meaningless
@@ -101,11 +108,16 @@ refreshed would throw the rotated refresh token away and kill the session at the
 ## Checks
 
 ```bash
-npm run typecheck        # tsc --noEmit
-npm run lint             # eslint, flat config, eslint-config-next through FlatCompat
-npm run build            # output: 'standalone'
-npm run test:e2e         # Playwright, against a REAL API on :5062
+pnpm typecheck           # tsc --noEmit
+pnpm lint                # eslint, flat config, eslint-config-next through FlatCompat
+pnpm build               # output: 'standalone'
+pnpm test:e2e            # Playwright, against a REAL API on :5062
 ```
+
+`.github/workflows/ci.yml` runs the first three plus `gen:types:check` on every push and pull
+request. It deliberately stops there: `test:e2e` and `gen:api:check` both need a running
+`BuildCv.Api`, which lives in another repository, and a CI job that reached for it would either need
+credentials for that checkout or would quietly skip the assertion it exists to make.
 
 **The smoke suite is the check that matters, and it exists because every other one was green.** The
 CV list was narrowed to a summary while the analysis screen kept reading `resume.experiences` off it:

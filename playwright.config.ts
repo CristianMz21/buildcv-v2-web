@@ -32,7 +32,9 @@ export default defineConfig({
   webServer: process.env.BUILDCV_WEB_ORIGIN
     ? undefined
     : {
-        command: 'npm run dev -- -p 3210',
+        // No `--` separator: npm consumes one and pnpm forwards it, so `pnpm dev -- -p 3210` reaches
+        // `next dev` as a literal `--` and the port is read as a project directory. Measured.
+        command: 'pnpm dev --port 3210',
         url: 'http://localhost:3210/login',
         reuseExistingServer: false,
         timeout: 120_000,

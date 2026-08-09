@@ -4,9 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Package manager is **pnpm** (`pnpm-lock.yaml`, `node_modules/.pnpm`, and the Dockerfile all use it).
-The README and the `gen:api` script still say `npm`; prefer `pnpm` for installs so the lockfile stays
-authoritative.
+Package manager is **pnpm**, pinned by the `packageManager` field so corepack resolves the same
+version the Dockerfile builds with.
 
 ```bash
 pnpm install
@@ -16,7 +15,8 @@ pnpm lint                 # eslint flat config
 pnpm build                # output: 'standalone'
 pnpm test:e2e             # Playwright — needs a REAL BuildCv.Api running
 pnpm gen:api              # refetch openapi.json and regenerate src/lib/api-schema.d.ts
-pnpm gen:api:check        # drift check: fails if either generated file moved
+pnpm gen:api:check        # contract drift: needs a live API
+pnpm gen:types:check      # regenerate from the COMMITTED openapi.json — needs nothing, runs in CI
 ```
 
 Run one e2e test / one step:
@@ -33,6 +33,14 @@ distinction is load-bearing: `next build` collects page data by importing every 
 `NODE_ENV=production`, so a module-level check made the build itself demand a runtime-only variable
 and `docker build` failed at `RUN pnpm build`. Resolve configuration behind a function; let
 `instrumentation.ts` force it at start.
+
+`pnpm dev --port 3210` takes **no** `--` separator. npm consumes one and pnpm forwards it, so
+`pnpm dev -- -p 3210` reaches `next dev` as a literal `--` and the port is read as a project
+directory — see `playwright.config.ts`.
+
+`.github/workflows/ci.yml` runs lint, typecheck, `gen:types:check` and build on every push and pull
+request. `test:e2e` and `gen:api:check` are not there: both need a running `BuildCv.Api` from the
+other repository.
 
 ## The other repository
 
