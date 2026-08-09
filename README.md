@@ -9,15 +9,37 @@ npm install
 npm run dev                    # http://localhost:3000
 ```
 
-The API side, with the in-memory store:
+The API lives in a **separate repository** (`buildcv-v2`). From that checkout, with the in-memory
+store:
 
 ```bash
 ASPNETCORE_ENVIRONMENT=Development \
-ASPNETCORE_URLS=http://localhost:5001 \
 Persistence__Provider=InMemory \
 Jwt__SigningKey='local-dev-signing-key-that-is-long-enough-32' \
-dotnet run --project ../src/BuildCv.Api
+dotnet run --project src/BuildCv.Api        # listens on :5062
 ```
+
+## The contract, across two repositories
+
+`src/lib/api-schema.d.ts` is **generated, never edited**, and `openapi.json` is committed beside it so
+`next build` never needs a running API.
+
+```bash
+npm run gen:api          # refetch the document and regenerate the types
+npm run gen:api:check    # the drift check: fails if either file moved
+```
+
+Run the check against a live API in CI. A diff means the contract changed under this client — the
+failure two repositories make possible and one made impossible, because an API change and its client
+fix can no longer be the same commit.
+
+**`contracts.ts` stays hand-written on top, on purpose.** It aliases the generated types so a shape
+change breaks the build, and carries what a generator strips: that a section `score` is meaningless
+when its `weight` is 0, that `impact` is on the 0..1 scale and not 0..100, that an entry `id` is
+opaque and never a position. Those are the facts that stop the UI stating things the API did not.
+
+`openapi-typescript` rather than Orval: types only, no runtime. Orval generates a client for
+react-query or axios, and every call here already goes through a route handler under `src/app/api`.
 
 ## Why a BFF and not a SPA
 
