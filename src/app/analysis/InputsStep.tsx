@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { Check, Zap } from '@/components/icons';
 import type { ResumeSummaryResponse } from '@/lib/contracts';
 import { plural, relativeTime, resumeLabel } from '@/lib/format';
@@ -38,6 +40,41 @@ export function InputsStep({
   const enoughText = jobDescription.trim().length > USEFUL_JD_LENGTH;
   const canContinue = enoughText && selectedResumeId !== null && !busy;
 
+  /**
+   * Arrow keys move within the group, and MOVING SELECTS — which is the radiogroup pattern rather
+   * than a shortcut. A radio that focus merely passed over would leave the group with a focused
+   * option and a different one checked, and no way for a screen reader user to tell which the button
+   * below will act on.
+   *
+   * Wrapping at both ends, and Home/End, are part of the same pattern. Only these keys are consumed;
+   * Tab still leaves the group, which is the point of the roving tabindex above.
+   */
+  function onKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (!resumes || resumes.length === 0) return;
+
+    const last = resumes.length - 1;
+    const target =
+      event.key === 'ArrowDown' || event.key === 'ArrowRight'
+        ? (index === last ? 0 : index + 1)
+        : event.key === 'ArrowUp' || event.key === 'ArrowLeft'
+          ? (index === 0 ? last : index - 1)
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? last
+              : null;
+
+    const moveTo = target === null ? undefined : resumes[target];
+    if (target === null || moveTo === undefined) return;
+
+    event.preventDefault();
+    onSelectResume(moveTo.id);
+
+    const group = event.currentTarget.parentElement;
+    const option = group?.children[target];
+    if (option instanceof HTMLElement) option.focus();
+  }
+
   return (
     <div className={styles.screen}>
       <div style={{ marginBottom: 28 }}>
@@ -61,14 +98,14 @@ export function InputsStep({
 
           {resumes?.length === 0 && (
             <div className={`card ${styles.empty}`}>
-              You have no CVs yet. Create one through the API — <code>POST /v1/resumes</code> or{' '}
-              <code>POST /v1/resumes/import</code> — and it will appear here.
+              You have no CVs yet. <Link href="/resumes">Create one</Link> or{' '}
+              <Link href="/resumes/import">import a document</Link>, and it will appear here.
             </div>
           )}
 
           {resumes && resumes.length > 0 && (
             <div className={styles.resumeList} role="radiogroup" aria-labelledby="resume-label">
-              {resumes.map((resume) => {
+              {resumes.map((resume, index) => {
                 const selected = resume.id === selectedResumeId;
 
                 return (
@@ -77,6 +114,12 @@ export function InputsStep({
                     type="button"
                     role="radio"
                     aria-checked={selected}
+                    // ROVING TABINDEX, which is what the radiogroup role promises a keyboard user: one
+                    // stop for the whole group, arrows to move within it. Without it every CV is its
+                    // own tab stop, so reaching the job-description field below meant tabbing past all
+                    // of them — and the list is fetched with limit=100.
+                    tabIndex={selected || (selectedResumeId === null && index === 0) ? 0 : -1}
+                    onKeyDown={(event) => onKeyDown(event, index)}
                     onClick={() => onSelectResume(resume.id)}
                     className={`${styles.resumeOption} ${selected ? styles.resumeOptionSelected : ''}`}
                   >

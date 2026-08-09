@@ -157,12 +157,44 @@ test('a candidate can register, import a CV, edit it and read its scores', async
     await expect(page.getByRole('link', { name: 'Backend roles' })).toBeVisible();
   });
 
-  await test.step('the analysis screen lists the CV rather than throwing on it', async () => {
+  await test.step('create a second CV by hand', async () => {
+    // A SECOND ONE, and not only to exercise the create form: with one CV in the picker below, "the
+    // group is a single tab stop" is true whatever the tabindex says. Two is the smallest list that
+    // can tell a roving tabindex from none.
+    await page.goto('/resumes');
+    await page.getByRole('button', { name: 'New CV' }).click();
+    await page.getByLabel('Full name').fill('Grace Hopper');
+    await page.getByLabel('Email').fill('grace@example.com');
+    await page.getByRole('button', { name: 'Create CV' }).click();
+
+    await expect(page.getByRole('link', { name: 'Grace Hopper' })).toBeVisible();
+  });
+
+  await test.step('the analysis screen lists the CVs rather than throwing on them', async () => {
     await page.goto('/analysis');
     // The regression this suite was written for: the picker reads a list row, and a list row carries
     // counts rather than entries.
-    await expect(page.getByRole('radio')).toHaveCount(1);
+    await expect(page.getByRole('radio')).toHaveCount(2);
     await expect(page.getByLabel('2. Paste the job description')).toBeVisible();
+
+    // The picker is ONE tab stop, not one per CV — the radiogroup pattern, and the reason a list
+    // fetched with limit=100 is not a keyboard trap.
+    //
+    // TAB IS CHECKED FIRST, from the FIRST option. Doing it after an arrow press proves nothing: the
+    // arrow leaves focus on the last option, and tabbing off the last one reaches the textarea
+    // whether or not the ones before it were skipped. Measured — that order passed with the tabindex
+    // deleted.
+    const options = page.getByRole('radio');
+    await options.first().focus();
+    await page.keyboard.press('Tab');
+    await expect(page.getByLabel('2. Paste the job description')).toBeFocused();
+
+    // Arrows move within the group, and moving SELECTS: a focused option that is not the checked one
+    // would leave a keyboard user unable to tell what the button below will act on.
+    await options.first().focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(options.nth(1)).toBeFocused();
+    await expect(options.nth(1)).toHaveAttribute('aria-checked', 'true');
   });
 
   expect(errors, 'the walkthrough must produce no console errors').toEqual([]);
