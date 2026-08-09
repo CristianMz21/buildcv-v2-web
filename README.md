@@ -4,6 +4,24 @@ Next.js App Router client for `BuildCv.Api`, running as a **BFF**. It covers bot
 product promises — the match score against a posting, and the readability score a CV gets on its own —
 against the real `/v1` contract.
 
+## The API this talks to
+
+The server lives in **[`buildcv-v2`](https://github.com/CristianMz21/buildcv-v2)**, a separate repo with
+its own lifecycle. Two things there are worth reading before changing anything here:
+
+- **[`docs/api-contract.md`](https://github.com/CristianMz21/buildcv-v2/blob/main/docs/api-contract.md)** —
+  written for whoever consumes the API. It carries what OpenAPI structurally cannot: the auth sequence,
+  why a refresh must be scheduled rather than triggered by a 401, and which refusals come back with an
+  unparseable body. Its numbers are asserted against the server's own constants, so they cannot go stale
+  quietly.
+- The OpenAPI document at `/openapi/v1.json`, **served in Development only**, which is what the typed
+  client here is generated from.
+
+Because this client is a BFF — the browser talks to Next.js, Next.js talks to the API server-side over
+bearer — CORS, `SameSite` and `Cross-Origin-Resource-Policy` never enter the picture. If a future change
+moves API calls into the browser, all three become real problems at once and that is a deliberate
+decision, not a configuration fix.
+
 | Route | What it does |
 |---|---|
 | `/login`, `/register` | Session. Tokens never reach the browser; see the BFF section below. |
