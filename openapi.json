@@ -2154,6 +2154,98 @@
         }
       }
     },
+    "/v1/resumes/{id}/name": {
+      "put": {
+        "tags": [
+          "Resumes"
+        ],
+        "summary": "Names a CV, or clears the name.",
+        "description": "A null or blank `name` CLEARS it rather than storing an empty one — a candidate cannot tell \"not named\" from \"named nothing\", so the two are one state. Surrounding whitespace is trimmed. Names are capped at 120 characters, which is product policy rather than a column width: the column is encrypted and cannot overflow.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameResumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumeSummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/resumes/{id}/experiences/{itemId}": {
       "delete": {
         "tags": [
@@ -6351,6 +6443,20 @@
           }
         }
       },
+      "RenameResumeRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ResponsibilityResponse": {
         "required": [
           "description"
@@ -6366,6 +6472,7 @@
         "required": [
           "id",
           "ownerId",
+          "name",
           "contactInformation",
           "createdAt",
           "updatedAt",
@@ -6389,6 +6496,12 @@
           "ownerId": {
             "type": "string",
             "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "contactInformation": {
             "$ref": "#/components/schemas/ContactInformationResponse"
@@ -6524,6 +6637,7 @@
         "required": [
           "id",
           "ownerId",
+          "name",
           "fullName",
           "email",
           "location",
@@ -6540,6 +6654,12 @@
           "ownerId": {
             "type": "string",
             "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "fullName": {
             "type": "string"

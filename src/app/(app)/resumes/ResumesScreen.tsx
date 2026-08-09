@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { FileText, Plus, Trash, Upload, Zap } from '@/components/icons';
 import type { PagedResponse, ProblemDetails, ResumeSummaryResponse } from '@/lib/contracts';
-import { plural, relativeTime } from '@/lib/format';
+import { plural, relativeTime, resumeLabel } from '@/lib/format';
 
 import styles from './resumes.module.css';
 
@@ -144,12 +144,12 @@ export function ResumesScreen() {
             </div>
 
             {/*
-              The contact name, because a Resume has no name of its own — there is no title on the
-              aggregate to show. Every CV a candidate owns therefore reads the same here, which is why
-              the line below carries what actually tells them apart.
+              The name the candidate gave it, falling back to the contact name — which is the same on
+              every CV they own, so an unnamed set of CVs is told apart by the counts and the edited
+              line below. Renaming lives in the editor: it is an edit to the CV, not a list action.
             */}
             <Link href={`/resumes/${resume.id}`} className={styles.name}>
-              {resume.fullName}
+              {resumeLabel(resume)}
             </Link>
             <div className={styles.meta}>Edited {relativeTime(resume.updatedAt)}</div>
 
@@ -175,7 +175,7 @@ export function ResumesScreen() {
               <button
                 type="button"
                 className="btn"
-                aria-label={`Delete the CV for ${resume.fullName}`}
+                aria-label={`Delete ${resumeLabel(resume)}`}
                 onClick={() => setConfirmingDelete(resume.id)}
               >
                 <Trash size={13} />

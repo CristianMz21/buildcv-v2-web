@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ArrowLeft, Zap } from '@/components/icons';
 import { RESUME_SECTIONS, type ProblemDetails, type ResumeResponse, type ResumeSection } from '@/lib/contracts';
-import { relativeTime } from '@/lib/format';
+import { relativeTime, resumeLabel } from '@/lib/format';
 
 import { ContactPanel } from './ContactPanel';
 import { ResumePreview } from './ResumePreview';
@@ -133,8 +133,20 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
         </Link>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            {/* The contact name, because a Resume has no name of its own to rename. */}
-            <h1 className={styles.title}>{resume.contactInformation.fullName}</h1>
+            <RenameTitle
+              // Remounts on every reload for the same reason ContactPanel does: the field shows what
+              // the server stored, which is the trimmed value rather than what was typed.
+              key={`${resume.updatedAt}:${resume.name ?? ''}`}
+              resume={resume}
+              busy={busy}
+              onRename={(name) =>
+                write(`/api/resumes/${resumeId}/name`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name }),
+                })
+              }
+            />
             <p className={styles.subtitle}>Edited {relativeTime(resume.updatedAt)}</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -220,5 +232,79 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
         <ResumePreview resume={resume} />
       </div>
     </div>
+  );
+}
+
+/**
+ * The CV's title, and the one place it can be renamed.
+ *
+ * The heading shows `resumeLabel`, so an unnamed CV reads as the candidate's own name rather than as a
+ * blank or a placeholder — but the INPUT is seeded with `resume.name` alone. Seeding it with the
+ * fallback would turn "rename, then think better of it" into a CV named after its owner, which is a
+ * different state from unnamed and one they never chose.
+ *
+ * Clearing the field is therefore a real action, not a mistake to guard against: it posts null, which
+ * is how the API says "no name". `NameMaxLength` is not repeated here — the server owns that number and
+ * refuses over it with a message this screen already renders.
+ */
+function RenameTitle({
+  resume,
+  busy,
+  onRename,
+}: {
+  resume: ResumeResponse;
+  busy: boolean;
+  onRename: (name: string | null) => Promise<boolean>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(resume.name ?? '');
+
+  if (!editing) {
+    return (
+      <div className={styles.titleRow}>
+        <h1 className={styles.title}>
+          {resumeLabel({ name: resume.name, fullName: resume.contactInformation.fullName })}
+        </h1>
+        <button
+          type="button"
+          className="btn btnGhost"
+          style={{ padding: '2px 6px' }}
+          onClick={() => setEditing(true)}
+        >
+          {resume.name ? 'Rename' : 'Name it'}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className={styles.titleRow}
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (busy) return;
+        // Blank means "clear it", which is exactly what the aggregate does with a blank string. The
+        // trim happens server-side too; doing it here only keeps the request honest about intent.
+        if (await onRename(draft.trim() === '' ? null : draft.trim())) setEditing(false);
+      }}
+    >
+      <input
+        className={styles.titleInput}
+        value={draft}
+        autoFocus
+        aria-label="CV name"
+        placeholder="Backend roles"
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setEditing(false);
+        }}
+      />
+      <button type="submit" className="btn btnPrimary" disabled={busy}>
+        {busy ? 'Saving…' : 'Save'}
+      </button>
+      <button type="button" className="btn" disabled={busy} onClick={() => setEditing(false)}>
+        Cancel
+      </button>
+    </form>
   );
 }

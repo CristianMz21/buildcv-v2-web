@@ -109,6 +109,25 @@ test('a candidate can register, import a CV, edit it and read its scores', async
     await expect(page.getByRole('button', { name: 'Remove Kubernetes' })).toHaveCount(0);
   });
 
+  await test.step('name the CV, and see the name where the CV is chosen', async () => {
+    // The heading reads the contact name until the CV is named, so this asserts the fallback first —
+    // otherwise a rename that silently did nothing would still leave the right words on screen.
+    await expect(page.getByRole('heading', { name: 'Grace Hopper', level: 1 })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Name it' }).click();
+    await page.getByLabel('CV name').fill('Backend roles');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Backend roles', level: 1 })).toBeVisible();
+
+    // It survives a round trip through the API rather than living in React state.
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Backend roles', level: 1 })).toBeVisible();
+
+    await page.goto('/resumes');
+    await expect(page.getByRole('link', { name: 'Backend roles' })).toBeVisible();
+  });
+
   await test.step('the analysis screen lists the CV rather than throwing on it', async () => {
     await page.goto('/analysis');
     // The regression this suite was written for: the picker reads a list row, and a list row carries

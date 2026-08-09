@@ -2173,6 +2173,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/resumes/{id}/name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Names a CV, or clears the name.
+         * @description A null or blank `name` CLEARS it rather than storing an empty one — a candidate cannot tell "not named" from "named nothing", so the two are one state. Surrounding whitespace is trimmed. Names are capped at 120 characters, which is product policy rather than a column width: the column is encrypted and cannot overflow.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RenameResumeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ResumeSummaryResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/resumes/{id}/experiences/{itemId}": {
         parameters: {
             query?: never;
@@ -4587,6 +4677,9 @@ export interface components {
             password: string;
             role: null | string;
         };
+        RenameResumeRequest: {
+            name: null | string;
+        };
         ResponsibilityResponse: {
             description: string;
         };
@@ -4595,6 +4688,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             ownerId: string;
+            name: null | string;
             contactInformation: components["schemas"]["ContactInformationResponse"];
             /** Format: date-time */
             createdAt: string;
@@ -4638,6 +4732,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             ownerId: string;
+            name: null | string;
             fullName: string;
             email: string;
             location: null | string;

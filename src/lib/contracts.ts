@@ -87,11 +87,11 @@ export type ResumeResponse = Schemas['ResumeResponse'];
  * It carries no entries and therefore no ids — deliberately. Fetch {@link ResumeResponse} for the CV
  * a candidate is about to edit.
  *
- * **A `Resume` has no name of its own.** There is no title on the aggregate, so a picker cannot show
- * one; see `resumeLabel` in `format.ts` for what it shows instead.
+ * `name` is optional and usually null — see `resumeLabel` in `format.ts` for the fallback.
  */
 export type ResumeSummaryResponse = Schemas['ResumeSummaryResponse'];
 export type ResumeSectionCounts = Schemas['ResumeSectionCounts'];
+export type RenameResumeRequest = Schemas['RenameResumeRequest'];
 
 /** The ten collections, and the URL segment each is addressed by. */
 export const RESUME_SECTIONS = [

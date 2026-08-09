@@ -31,10 +31,36 @@
   margin-bottom: 20px;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
 .title {
-  margin: 0 0 4px;
+  margin: 0;
   font: 700 22px/1.2 var(--font);
   letter-spacing: -0.02em;
+}
+
+/* Sized to match .title so the heading does not jump when it becomes a field. */
+.titleInput {
+  min-width: 0;
+  width: 260px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 700 18px/1.2 var(--font);
+  letter-spacing: -0.02em;
+}
+
+.titleInput:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
 }
 
 .subtitle {

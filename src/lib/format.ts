@@ -1,7 +1,6 @@
 import type {
   RecommendationPriority,
   RecommendationResponse,
-  ResumeSummaryResponse,
   ScoreBand,
   SectionName,
 } from './contracts';
@@ -175,17 +174,21 @@ export function unmeasuredReason(section: string): string {
 /**
  * What to call a CV in a list.
  *
- * THE CONTACT NAME, because a `Resume` has no name, title or label of its own — the aggregate does
- * not carry one. An earlier version reached for the most recent job title instead, which read better
- * and stopped working the day `GET /v1/resumes` was narrowed to a summary: a list row has no
- * experiences to read a title out of. Reading only what a summary actually carries is what keeps this
- * honest across both shapes.
+ * THE NAME THE CANDIDATE GAVE IT, falling back to the contact name. Those are the only two things a
+ * list row carries that could serve as a label, and the fallback is the honest one rather than a
+ * placeholder: an unnamed CV is the ordinary state, not a gap, so "Untitled" would scold a candidate
+ * for not doing something optional.
  *
- * The consequence is that every CV a candidate owns reads the same here. That is a real gap and the
- * fix is a name on the aggregate, not a cleverer guess in this function.
+ * An earlier version reached for the most recent job title, which read better and stopped working the
+ * day `GET /v1/resumes` was narrowed to a summary — a list row has no experiences to read a title out
+ * of. Reading only what a summary actually carries is what keeps this working across both shapes.
+ *
+ * The parameter is the two fields rather than `Pick<ResumeSummaryResponse, …>` because the full
+ * `ResumeResponse` nests the contact name one level down and would not satisfy that Pick. Both callers
+ * pass the same two strings, which is the point — one statement of the fallback, not two.
  */
-export function resumeLabel(resume: Pick<ResumeSummaryResponse, 'fullName'>): string {
-  return resume.fullName;
+export function resumeLabel(resume: { name: string | null; fullName: string }): string {
+  return resume.name?.trim() || resume.fullName;
 }
 
 /** English-only, and only for the regular nouns this screen counts. */
