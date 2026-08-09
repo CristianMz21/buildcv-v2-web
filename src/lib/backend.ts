@@ -105,7 +105,13 @@ async function readProblem(response: Response): Promise<ProblemDetails> {
 
 export type LoginOutcome =
   | { ok: true; session: Session; expiresIn: number }
-  | { ok: false; status: number; problem: ProblemDetails };
+  /**
+   * `retryAfter` is the API's own `Retry-After`, in seconds, and it is carried because login is the
+   * most throttled route in the product: 5 a minute per client address, shared behind NAT or a
+   * delegated IPv6 /64. Without it the form can only guess at a wait, and a guess that is short
+   * invites the retry that extends the window.
+   */
+  | { ok: false; status: number; problem: ProblemDetails; retryAfter: string | null };
 
 /**
  * Exchanges credentials for a session. `/v1/auth/login` is `AllowAnonymous` and CSRF-exempt, and it
@@ -121,7 +127,12 @@ export async function login(email: string, password: string): Promise<LoginOutco
   });
 
   if (!response.ok) {
-    return { ok: false, status: response.status, problem: await readProblem(response) };
+    return {
+      ok: false,
+      status: response.status,
+      problem: await readProblem(response),
+      retryAfter: response.headers.get('Retry-After'),
+    };
   }
 
   const token = (await response.json()) as TokenResponse;
@@ -134,6 +145,7 @@ export async function login(email: string, password: string): Promise<LoginOutco
       ok: false,
       status: 502,
       problem: { status: 502, title: 'Bad gateway', detail: 'The API issued no refresh token.' },
+      retryAfter: null,
     };
   }
 

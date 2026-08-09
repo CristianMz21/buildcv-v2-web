@@ -32,10 +32,12 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const session = await login(email, password);
   if (!session.ok) {
-    return NextResponse.json(session.problem, {
-      status: session.status,
-      headers: { 'content-type': 'application/problem+json' },
-    });
+    const headers = new Headers({ 'content-type': 'application/problem+json' });
+    // Register and login share one 5-per-minute window, so registering spends part of it: this is
+    // the throttle a new account meets most often, and the wait has to be the API's number.
+    if (session.retryAfter !== null) headers.set('retry-after', session.retryAfter);
+
+    return NextResponse.json(session.problem, { status: session.status, headers });
   }
 
   await writeSession(session.session);

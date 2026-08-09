@@ -186,3 +186,45 @@ test('a signed-out visitor is sent to sign in, once', async ({ page }) => {
   ).toBeLessThan(3);
   expect(errors.filter((text) => !text.includes('401'))).toEqual([]);
 });
+
+// LAST ON PURPOSE. It deliberately spends this client address's sign-in window, and every other test
+// in this file needs one. The cost is that a re-run started inside the same 60-second window fails
+// at registration — with the 429 this test is about, which is at least legible.
+test('a throttled sign-in says how long to wait, in the API’s own number', async ({ page }) => {
+  const errors = failOnConsoleErrors(page);
+
+  await page.goto('/login');
+
+  // `/auth/login` allows 5 a minute per address. Six wrong attempts reach the limiter; the sixth is
+  // the one that answers 429 with Retry-After.
+  // Scoped to the form: Next's own route announcer is also role="alert" and matches everything.
+  const banner = page.locator('form').getByRole('alert');
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await page.getByLabel('Email').fill(`throttled-${attempt}@example.com`);
+    await page.getByLabel('Password').fill('Not!TheRight-Passphrase-2026');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(banner).toBeVisible();
+  }
+
+  // The NUMBER, not the word "minute": the message is built from the header the BFF relayed, so a
+  // hardcoded sentence — which is what this replaced — cannot satisfy it.
+  await expect(banner).toContainText(/Too many attempts\. Wait \d+ (second|minute)s?/);
+
+  // This test drives six FAILING requests on purpose, and the browser logs each refusal as a console
+  // error. So the guard here is narrower than elsewhere: no uncaught exception, and nothing beyond the
+  // "failed to load resource" lines those refusals are expected to produce.
+  expect(errors.filter((text) => !/Failed to load resource/i.test(text))).toEqual([]);
+
+  // AND THEN IT PUTS THE WINDOW BACK. Measured: without this the next run of this file fails at
+  // registration, because the limiter partitions on client address and a test machine has one. The
+  // limiter is fixed-window, so a rejected probe consumes no permit and polling cannot extend it.
+  await expect
+    .poll(
+      async () =>
+        (await page.request.post('/api/auth/login', { data: { email: 'probe@example.com', password: 'x' } }))
+          .status(),
+      { message: 'the sign-in window must be left clean for the next run', timeout: 90_000, intervals: [5_000] },
+    )
+    .not.toBe(429);
+});

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import type { ProblemDetails } from '@/lib/contracts';
+import { waitFor } from '@/lib/http';
 
 import styles from '../login/login.module.css';
 
@@ -40,9 +41,11 @@ export function RegisterForm() {
 
       if (!response.ok) {
         const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
+        // Registering spends the same 5-per-minute window signing in does, so this is the throttle
+        // a new account meets most often. The wait comes from the API rather than from a constant.
         setError(
           response.status === 429
-            ? 'Too many attempts. Wait a minute before trying again.'
+            ? `Too many attempts. ${waitFor(response)}`
             : (problem.detail ?? 'The account could not be created.'),
         );
         return;

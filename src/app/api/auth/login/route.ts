@@ -16,10 +16,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   const outcome = await login(email, password);
 
   if (!outcome.ok) {
-    return NextResponse.json(outcome.problem, {
-      status: outcome.status,
-      headers: { 'content-type': 'application/problem+json' },
-    });
+    const headers = new Headers({ 'content-type': 'application/problem+json' });
+    // The 429's wait, forwarded rather than restated. The form used to say "wait a minute" from a
+    // constant, which is right only while the policy is 5-per-minute and wrong the moment it moves.
+    if (outcome.retryAfter !== null) headers.set('retry-after', outcome.retryAfter);
+
+    return NextResponse.json(outcome.problem, { status: outcome.status, headers });
   }
 
   await writeSession(outcome.session);

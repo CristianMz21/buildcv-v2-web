@@ -9,10 +9,10 @@ import type {
   ExtractJobOfferRequirementsResponse,
   JobPostingResponse,
   PagedResponse,
-  ProblemDetails,
   ResumeSummaryResponse,
 } from '@/lib/contracts';
 import { resumeLabel } from '@/lib/format';
+import { fieldErrorsOf, messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import styles from './analysis.module.css';
 import { InputsStep } from './InputsStep';
@@ -28,29 +28,6 @@ const STEP_LABELS: [string, Phase[]][] = [
   ['2 · Requirements', ['requirements']],
   ['3 · Results', ['running', 'results', 'suggestions']],
 ];
-
-/** The BFF answers a real 401 when the session is gone — see the note in `relay.ts`. */
-class SessionExpired extends Error {}
-
-async function readJson<T>(response: Response): Promise<T> {
-  if (response.status === 401) throw new SessionExpired();
-
-  if (!response.ok) {
-    const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
-    const error = new Error(problem.detail ?? problem.title ?? `Request failed (${response.status}).`);
-    // Field errors are carried on the thrown error rather than flattened into the message: the
-    // requirement form needs the path to mark the right input, which a sentence cannot give it.
-    Object.assign(error, { fieldErrors: problem.errors ?? {} });
-    throw error;
-  }
-
-  return (await response.json()) as T;
-}
-
-function fieldErrorsOf(error: unknown): Record<string, string[]> {
-  const carried = (error as { fieldErrors?: Record<string, string[]> } | null)?.fieldErrors;
-  return carried ?? {};
-}
 
 export function AnalysisFlow() {
   const router = useRouter();
@@ -98,7 +75,7 @@ export function AnalysisFlow() {
       } catch (caught) {
         if (cancelled) return;
         if (caught instanceof SessionExpired) return onExpired();
-        setResumesError(caught instanceof Error ? caught.message : 'Could not load your CVs.');
+        setResumesError(messageOf(caught, 'Could not load your CVs.'));
       }
     })();
 
@@ -132,7 +109,7 @@ export function AnalysisFlow() {
       setPhase('requirements');
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'Could not read that posting.');
+      setError(messageOf(caught, 'Could not read that posting.'));
     } finally {
       setBusy(false);
     }
@@ -180,7 +157,7 @@ export function AnalysisFlow() {
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
       setFieldErrors(fieldErrorsOf(caught));
-      setError(caught instanceof Error ? caught.message : 'The analysis failed.');
+      setError(messageOf(caught, 'The analysis failed.'));
       // Back to the form that owns the inputs, so a field error lands next to its input rather than
       // on a progress screen with nothing to correct.
       setPhase('requirements');

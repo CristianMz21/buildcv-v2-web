@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { Warning } from '@/components/icons';
 import type { AccountResponse, ProblemDetails } from '@/lib/contracts';
+import { waitFor } from '@/lib/http';
 
 import styles from './settings.module.css';
 
@@ -91,9 +92,11 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
 
       if (!response.ok) {
         const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
+        // Partitioned per ACCOUNT rather than per address, so this window is the caller's own and
+        // waiting it out actually works. The number is the API's.
         setError(
           response.status === 429
-            ? 'Too many attempts on this account. Wait a minute.'
+            ? `Too many attempts on this account. ${waitFor(response)}`
             : (problem.detail ?? 'The password could not be changed.'),
         );
         return;

@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import { ArrowLeft, Zap } from '@/components/icons';
-import { RESUME_SECTIONS, type ProblemDetails, type ResumeResponse, type ResumeSection } from '@/lib/contracts';
+import { RESUME_SECTIONS, type ResumeResponse, type ResumeSection } from '@/lib/contracts';
 import { relativeTime, resumeLabel } from '@/lib/format';
+import { fieldErrorsOf, messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import { ContactPanel } from './ContactPanel';
 import { ResumePreview } from './ResumePreview';
@@ -16,27 +17,6 @@ import styles from './editor.module.css';
 
 type Pane = 'contact' | ResumeSection;
 
-class SessionExpired extends Error {}
-
-interface Failure extends Error {
-  fieldErrors: Record<string, string[]>;
-}
-
-async function readJson<T>(response: Response): Promise<T> {
-  if (response.status === 401) throw new SessionExpired();
-
-  if (!response.ok) {
-    const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
-    const failure = new Error(
-      problem.detail ?? problem.title ?? `Request failed (${response.status}).`,
-    ) as Failure;
-    // Carried rather than flattened into the message: the form needs the path to mark the right input.
-    failure.fieldErrors = problem.errors ?? {};
-    throw failure;
-  }
-
-  return (await response.json()) as T;
-}
 
 /**
  * The CV editor.
@@ -64,7 +44,7 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
       setResume(await readJson<ResumeResponse>(response));
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'Could not load this CV.');
+      setError(messageOf(caught, 'Could not load this CV.'));
     }
   }, [resumeId, onExpired]);
 
@@ -93,8 +73,8 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
         onExpired();
         return false;
       }
-      setFieldErrors((caught as Failure).fieldErrors ?? {});
-      setError(caught instanceof Error ? caught.message : 'The change could not be saved.');
+      setFieldErrors(fieldErrorsOf(caught));
+      setError(messageOf(caught, 'The change could not be saved.'));
       return false;
     } finally {
       setBusy(false);

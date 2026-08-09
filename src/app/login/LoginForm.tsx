@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import type { ProblemDetails } from '@/lib/contracts';
+import { waitFor } from '@/lib/http';
 
 import styles from './login.module.css';
 
@@ -31,10 +32,11 @@ export function LoginForm() {
 
         // 429 is its own message because it is the one failure retrying makes worse: /auth/login is
         // rate limited to 5 requests a minute per client address, and behind NAT or a delegated IPv6
-        // /64 that window is shared with everyone else on it.
+        // /64 that window is shared with everyone else on it. The wait is the API's own Retry-After,
+        // relayed by the route handler — a constant here would be right only until the policy moves.
         setError(
           response.status === 429
-            ? 'Too many attempts. Wait a minute before trying again.'
+            ? `Too many attempts. ${waitFor(response)}`
             : (problem.detail ?? 'Sign-in failed.'),
         );
         return;

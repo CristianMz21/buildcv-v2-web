@@ -17,11 +17,22 @@ import { clearSession } from './session';
 export async function relay(upstream: Response): Promise<NextResponse> {
   const body = await upstream.text();
 
+  const headers = new Headers({
+    'content-type': upstream.headers.get('content-type') ?? 'application/json',
+  });
+
+  // `Retry-After` is the only thing that turns a 429 body into an instruction, and `X-Correlation-ID`
+  // is what maps an error on screen to a line in the API's log. Neither survives a body-only relay,
+  // and both are useless the moment they are dropped — which is why they are copied here rather than
+  // re-derived by every screen.
+  for (const header of ['retry-after', 'x-correlation-id']) {
+    const value = upstream.headers.get(header);
+    if (value !== null) headers.set(header, value);
+  }
+
   return new NextResponse(body.length > 0 ? body : null, {
     status: upstream.status,
-    headers: {
-      'content-type': upstream.headers.get('content-type') ?? 'application/json',
-    },
+    headers,
   });
 }
 

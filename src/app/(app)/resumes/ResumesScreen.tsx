@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import { FileText, Plus, Trash, Upload, Zap } from '@/components/icons';
-import type { PagedResponse, ProblemDetails, ResumeSummaryResponse } from '@/lib/contracts';
+import type { PagedResponse, ResumeSummaryResponse } from '@/lib/contracts';
 import { plural, relativeTime, resumeLabel } from '@/lib/format';
+import { failureOf, messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import styles from './resumes.module.css';
 
@@ -18,18 +19,6 @@ const SUMMARISED = [
   ['projects', 'project'],
 ] as const;
 
-class SessionExpired extends Error {}
-
-async function readJson<T>(response: Response): Promise<T> {
-  if (response.status === 401) throw new SessionExpired();
-
-  if (!response.ok) {
-    const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
-    throw new Error(problem.detail ?? problem.title ?? `Request failed (${response.status}).`);
-  }
-
-  return (await response.json()) as T;
-}
 
 export function ResumesScreen() {
   const router = useRouter();
@@ -49,7 +38,7 @@ export function ResumesScreen() {
       setResumes(page.items);
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'Could not load your CVs.');
+      setError(messageOf(caught, 'Could not load your CVs.'));
     }
   }, [onExpired]);
 
@@ -74,7 +63,7 @@ export function ResumesScreen() {
       await load();
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'Could not create the CV.');
+      setError(messageOf(caught, 'Could not create the CV.'));
     } finally {
       setBusy(false);
     }
@@ -87,12 +76,13 @@ export function ResumesScreen() {
     try {
       const response = await fetch(`/api/resumes/${id}`, { method: 'DELETE' });
       if (response.status === 401) return onExpired();
-      if (!response.ok) throw new Error('Could not delete the CV.');
+      // Read the body rather than inventing a sentence: a 429 here has a Retry-After the user can act on.
+      if (!response.ok) throw await failureOf(response);
 
       setConfirmingDelete(null);
       await load();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not delete the CV.');
+      setError(messageOf(caught, 'Could not delete the CV.'));
     } finally {
       setBusy(false);
     }
