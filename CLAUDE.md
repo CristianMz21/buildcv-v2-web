@@ -107,6 +107,51 @@ The throttling test is **last on purpose** — it spends this machine's sign-in 
 per address) and then polls until the window is clean. Re-running the file inside that window fails at
 registration.
 
+## Skills
+
+Vendored by `npx autoskills` into `.agents/skills/` and symlinked from `.claude/skills/`. Both are
+gitignored and reconstructible; only `skills-lock.json` is committed, so run `npx autoskills` after a
+fresh clone. Several are also available from plugins under a `vercel:` prefix — prefer the local copy,
+since the lockfile is what makes it reproducible.
+
+Load these for the work they name:
+
+| Work | Skill |
+|---|---|
+| Keyboard and ARIA behaviour on any screen | `accessibility` |
+| Anything under `e2e/` | `playwright-best-practices` |
+| `src/lib/contracts.ts` and the generated-type layer | `typescript-advanced-types` |
+| Client screens, hook usage, re-render cost | `react-best-practices`, `composition-patterns` |
+| Route handlers, RSC boundaries, metadata | `next-best-practices` |
+
+**Where a skill's generic advice contradicts a decision this repo already made, the repo wins** — and
+the reason is in the comment beside the code, not just here:
+
+- **`playwright-best-practices` recommends mocking the API.** This suite deliberately does not. A mock
+  is written from the same belief that was wrong, and every bug it exists to catch lives in the seam
+  between the two systems. Take its Page Object, tagging and CI guidance; skip the mocking chapter.
+- **`next-best-practices` and `react-best-practices` will push data fetching into Server Components.**
+  Not here. A Server Component cannot write cookies, so it cannot carry the proactive refresh — see the
+  BFF section above.
+
+### Removed on purpose
+
+`npx autoskills` detects React / Next.js / Node.js and installs twelve skills. Six were removed
+because their advice does not describe this project:
+
+| Removed | Why |
+|---|---|
+| `nodejs-backend-patterns` | Express/Fastify services. There is no Node backend; the server is ASP.NET in `buildcv-v2`, and route handlers here are a four-line relay by design. |
+| `next-cache-components` | Next.js 16 `use cache` and PPR. This project is on 15.5.4 and every API call is `cache: 'no-store'` per-user data behind a session. |
+| `seo` | Targets public pages. Everything but `/login` and `/register` is behind a session gate, and `frame-ancestors 'none'` says this app is not meant to be indexed. |
+| `nodejs-best-practices` | Framework selection and general architecture, for a project whose framework and architecture are settled. |
+| `next-upgrade` | Only applies during a version migration. |
+| `frontend-design` | Proposes aesthetic direction. The design is fixed by the source mockup, and every deliberate deviation is recorded in the README table. |
+
+**autoskills has no exclude mechanism** — `skills-lock.json` records what is installed, not what was
+rejected. A future `npx autoskills` re-detects the same stack and restores all six. Re-prune after
+running it, or decide knowingly to keep them.
+
 ## Conventions
 
 - Path alias `@/*` → `./src/*`. Styling is CSS Modules per screen plus tokens in `src/app/globals.css`.

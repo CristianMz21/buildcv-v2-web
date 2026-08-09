@@ -9,3 +9,14 @@ next-env.d.ts
 
 test-results/
 playwright-report/
+
+# Agent skills, vendored by `npx autoskills` and reconstructible from it — skills-lock.json is the
+# committed record. The symlinks under .claude/skills point into .agents, so both go together: a
+# committed symlink into an ignored directory dangles on clone, and on a host without symlink
+# support git checks it out as a text file holding the path, which is worse than absent.
+.agents/
+.claude/skills/
+
+# gentle-ai's skill registry. Machine-specific — it records absolute paths from the host that
+# generated it.
+.atl/
