@@ -1,7 +1,19 @@
 # BuildCv web
 
-Next.js App Router client for `BuildCv.Api`, running as a **BFF**. Implements one screen —
-`BuildCV Analysis.dc.html` from the Claude Design project — against the real `/v1` contract.
+Next.js App Router client for `BuildCv.Api`, running as a **BFF**. It covers both halves of what the
+product promises — the match score against a posting, and the readability score a CV gets on its own —
+against the real `/v1` contract.
+
+| Route | What it does |
+|---|---|
+| `/login`, `/register` | Session. Tokens never reach the browser; see the BFF section below. |
+| `/resumes` | Every CV, with what tells them apart. Create, name, delete. |
+| `/resumes/[id]` | The editor: ten sections, add / correct / remove per entry, live A4 preview. |
+| `/resumes/[id]/readability` | The second score. Five sections, renormalized weights, measured advice. |
+| `/resumes/[id]/history` | Every analysis this CV has been through, oldest first. |
+| `/resumes/import` | A document in, a reviewed CV out. The only path that fills `AtsParseability`. |
+| `/analysis` | A CV against a job posting, from the source design. |
+| `/settings` | Email, role, password. |
 
 ```bash
 cp .env.example .env.local     # point BUILDCV_API_ORIGIN at the running API
@@ -68,6 +80,34 @@ All API traffic goes through route handlers under `src/app/api`, never a Server 
 forbids writing cookies outside a Route Handler or Server Action, so a Server Component that
 refreshed would throw the rotated refresh token away and kill the session at the next expiry.
 
+## Checks
+
+```bash
+npm run typecheck        # tsc --noEmit
+npm run lint             # eslint, flat config, eslint-config-next through FlatCompat
+npm run build            # output: 'standalone'
+npm run test:e2e         # Playwright, against a REAL API on :5062
+```
+
+**The smoke suite is the check that matters, and it exists because every other one was green.** The
+CV list was narrowed to a summary while the analysis screen kept reading `resume.experiences` off it:
+`tsc` passed, `next build` passed, the API's whole suite passed, and the screen threw on load. The
+fetch had been annotated with an explicit generic, which is an assertion rather than a check — so the
+compiler agreed with a lie. Nothing in `e2e/` mocks the API, because a mock is written from the same
+belief that was wrong, and the run **fails on any console error**: the broken screen still rendered
+its shell, so a check on visible text would have passed.
+
+## Deployment
+
+`docker-compose.app.yml` in the API repository brings up `mssql`, `api` and `web` on one network.
+**Only `web` publishes a port.** `BUILDCV_API_ORIGIN=http://api:8080` keeps every call server-side,
+which is what makes `Cors:AllowedOrigins` and `Network:ForwardedHeaders` unnecessary for this path —
+if the API is ever exposed directly, both become required.
+
+`BUILDCV_API_ORIGIN` is validated at server start via `src/instrumentation.ts`, not lazily on the
+first request. In production a missing value throws; there is no localhost fallback to silently
+succeed against.
+
 ## What the design asked for, and what the backend has
 
 The source design is a mockup with invented data. Roughly a third of it has no data source. Nothing
@@ -98,11 +138,29 @@ Two rules the code follows that are worth not undoing:
 - **Nothing re-implements a server rule.** No client-side skill matcher, no client-side band
   arithmetic. One statement per rule.
 
-## Not implemented
+## Not implemented, and why
 
-The design project carries five more screens (`Auth`, `Dashboard`, `Editor`, `Settings`, `States`).
-Only `Analysis` was in scope. `/login` exists because the analysis screen needs a session; there is
-no sign-up screen, and accounts are created through `POST /v1/auth/register`.
+Every item here needs a backend that does not exist — a mailer, a file store, a PDF generator, an
+aggregation endpoint. None is a shortcut taken on the client.
 
-The readability half of the product — `POST /v1/resumes/{id}/readability`, the second score the
-README promises — is not on this screen and has no design to build from.
+| Missing | What it would need |
+|---|---|
+| Dashboard | Most of the mockup's tiles have no source. There is no per-account analysis feed — only `GET /v1/resumes/{id}/analyses` — so a cross-CV timeline cannot be assembled honestly. |
+| Export to PDF | No renderer, server-side or otherwise. |
+| Social login, password reset, email verification, 2FA | No mailer, no external identity provider. |
+| ⌘K search | No search endpoint. |
+| Notifications, billing, teams, admin analytics | No endpoints at all. |
+| A per-CV ATS badge on the list | A match score needs a posting; a readability score is a `POST` that creates a report, not a field on a list row. |
+
+Two gaps that are the API's shape rather than an absent feature, and that the editor states on screen
+rather than working around:
+
+- **A month-precision date cannot be edited without giving it a day.** `PartialDate` carries `2019-03`
+  end to end and an import produces one, but `<input type="date">` cannot hold it and the per-section
+  routes bind `DateOnly`. The field opens blank and the form says which date needs a day, instead of
+  inventing the 1st.
+- **Correcting an experience clears its bullet points, and correcting a skill clears its alternative
+  spellings.** `AddExperienceRequest` has no `highlights` and `AddSkillRequest` no `keywords`, while
+  the responses carry both — and `PUT` replaces an entry outright. Achievements is computed from
+  nothing but the bullet points, so the editor names the loss before saving. Widening those two
+  requests is the fix, and it belongs in the API repository.
