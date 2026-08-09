@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(./src/lib/api-schema.d.ts)",
+      "Write(./src/lib/api-schema.d.ts)",
+      "Edit(./openapi.json)",
+      "Write(./openapi.json)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm ci)",
+      "Bash(npm ci:*)"
+    ]
+  }
+}

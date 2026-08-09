@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 Package manager is **pnpm**, pinned by the `packageManager` field so corepack resolves the same
-version the Dockerfile builds with.
+version the Dockerfile builds with. `npm install` is denied in `.claude/settings.json` — it would
+write a `package-lock.json` and resolve a tree the container never builds.
 
 ```bash
 pnpm install
@@ -26,6 +27,9 @@ pnpm exec playwright test -g 'a throttled sign-in'
 pnpm exec playwright test e2e/smoke.spec.ts --headed --debug
 ```
 
+There is a `/smoke` skill that carries the whole e2e runbook, including starting the API from the
+sibling `buildcv-v2` checkout and the sign-in rate-limit window.
+
 `BUILDCV_API_ORIGIN` (defaults to `http://localhost:5062` in dev, **required** in production) points at
 the API. `BUILDCV_ALLOW_SELF_SIGNED=1` is the local-only escape hatch for the ASP.NET dev certificate.
 Both are validated at server start via `src/instrumentation.ts` — **not at module load**, and that
@@ -37,10 +41,6 @@ and `docker build` failed at `RUN pnpm build`. Resolve configuration behind a fu
 `pnpm dev --port 3210` takes **no** `--` separator. npm consumes one and pnpm forwards it, so
 `pnpm dev -- -p 3210` reaches `next dev` as a literal `--` and the port is read as a project
 directory — see `playwright.config.ts`.
-
-`.github/workflows/ci.yml` runs lint, typecheck, `gen:types:check` and build on every push and pull
-request. `test:e2e` and `gen:api:check` are not there: both need a running `BuildCv.Api` from the
-other repository.
 
 ## The other repository
 
@@ -126,6 +126,10 @@ gitignored and reconstructible; only `skills-lock.json` is committed, so run `np
 fresh clone. Several are also available from plugins under a `vercel:` prefix — prefer the local copy,
 since the lockfile is what makes it reproducible.
 
+`.claude/skills/smoke/` is the exception: hand-written, versioned, and negated back in `.gitignore`.
+A project skill added later needs its own negation, because the rule above ignores the directory's
+contents to keep vendored symlinks out.
+
 Load these for the work they name:
 
 | Work | Skill |
@@ -163,6 +167,24 @@ because their advice does not describe this project:
 **autoskills has no exclude mechanism** — `skills-lock.json` records what is installed, not what was
 rejected. A future `npx autoskills` re-detects the same stack and restores all six. Re-prune after
 running it, or decide knowingly to keep them.
+
+## Guardrails
+
+- **`.github/workflows/ci.yml`** runs lint, typecheck, `gen:types:check` and build on every push and
+  pull request. It stops there deliberately: `test:e2e` and `gen:api:check` both need a running
+  `BuildCv.Api` from another repository, and a job that mocked one would assert nothing.
+- **`.claude/settings.json`** denies `Edit`/`Write` on `src/lib/api-schema.d.ts` and `openapi.json`.
+  Three places say those files are generated and nothing enforced it; a type widened by hand to make
+  `tsc` agree with a screen is exactly the edit that gets reverted by the next `gen:api`. The
+  regeneration path still works — it writes through the shell, not the edit tools. `npm install` and
+  `npm ci` are denied for the lockfile reason above.
+- **`.claude/agents/contract-reviewer.md`** reviews a diff against the invariants in this file. Use it
+  before committing anything under `src/lib`, `src/app` or `e2e`. It exists because every rule in that
+  section is one a green build can break — the regression the e2e suite was written for type-checked
+  perfectly.
+- **No per-edit hook, on purpose.** Measured: `pnpm typecheck` costs 5.2s warm, and eslint on a
+  *single* file costs 4.8s — the price is process startup, not file count. A `PostToolUse` hook would
+  charge every `Edit` five seconds to re-run what CI already runs once per push.
 
 ## Conventions
 

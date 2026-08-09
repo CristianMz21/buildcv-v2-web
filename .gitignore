@@ -15,7 +15,11 @@ playwright-report/
 # committed symlink into an ignored directory dangles on clone, and on a host without symlink
 # support git checks it out as a text file holding the path, which is worse than absent.
 .agents/
-.claude/skills/
+.claude/skills/*
+
+# Hand-written and versioned, unlike everything else under .claude/skills. Any project skill added
+# later needs its own negation here — the rule above is what keeps a vendored symlink out.
+!.claude/skills/smoke/
 
 # gentle-ai's skill registry. Machine-specific — it records absolute paths from the host that
 # generated it.
