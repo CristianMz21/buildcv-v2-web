@@ -15,10 +15,22 @@ export function SettingsScreen() {
 
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((response) => (response.ok ? response.json() : null))
+      .then((response) => {
+        // A 401 HERE IS THE SESSION ENDING, not a field the account happens not to carry. Reading
+        // only `response.ok` collapsed the two: the screen rendered every value as an em dash and
+        // offered no way out, so a signed-out account looked like an empty one. `withSession` has
+        // already cleared the cookies by this point, which is why the only useful move is the
+        // redirect rather than a banner — the same rule `SessionExpired` states everywhere else.
+        if (response.status === 401) {
+          router.replace('/login');
+          return null;
+        }
+
+        return response.ok ? response.json() : null;
+      })
       .then(setAccount)
       .catch(() => setAccount(null));
-  }, []);
+  }, [router]);
 
   return (
     <div className={styles.narrow}>

@@ -93,10 +93,19 @@ export function ResumesScreen() {
       <div className={styles.head}>
         <div>
           <h1 className={styles.title}>Your CVs</h1>
+          {/*
+            THE ERROR CASE IS NOT THE LOADING CASE, and `resumes` stays null in both. Reading only
+            `resumes === null` left this line saying "Loading…" underneath a red banner that had
+            already reported the failure — on the first screen after sign-in, telling the candidate
+            to keep waiting for something that had stopped. The sibling screens guard on the error
+            too; this one did not.
+          */}
           <p className={styles.lead}>
-            {resumes === null
-              ? 'Loading…'
-              : `${plural(resumes.length, 'CV')} · each one scores separately against a posting`}
+            {resumes
+              ? `${plural(resumes.length, 'CV')} · each one scores separately against a posting`
+              : error
+                ? 'Your CVs could not be loaded.'
+                : 'Loading…'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -118,7 +127,10 @@ export function ResumesScreen() {
       )}
 
       <div className={styles.grid}>
+        {/* `!error` for the same reason as the line above: a skeleton that pulses forever reads as
+            work in progress, and after a failure there is none. */}
         {resumes === null &&
+          !error &&
           [0, 1, 2].map((key) => <div key={key} className={styles.skeleton} aria-hidden="true" />)}
 
         {resumes?.map((resume) => (
