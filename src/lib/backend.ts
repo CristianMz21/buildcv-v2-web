@@ -18,10 +18,6 @@ import { readSession, secondsUntilExpiry, writeSession, type Session } from './s
  * silent outage: every call dials a port nothing is listening on, every screen reports a network
  * error, and no line anywhere says the origin was never configured.
  *
- * This check runs at module load, which is LAZY — this module is not loaded until a route handler
- * first runs. `instrumentation.ts` imports it at server start so the failure lands there instead, on
- * a deploy rather than on a user's first sign-in.
- *
  * The dev default is 5062 because that is the port `dotnet run` binds from the API's launch
  * settings — `ASPNETCORE_URLS` does not override it.
  */
@@ -40,18 +36,49 @@ function resolveApiOrigin(): string {
   return configured.replace(/\/+$/, '');
 }
 
-const API_ORIGIN = resolveApiOrigin();
+let configuredOrigin: string | null = null;
 
 /**
- * The ASP.NET Core development certificate is self-signed, and Node rejects it. This is the blunt
- * escape hatch for pointing local dev at the https listener; it is refused in production so a
- * mis-set variable cannot disable certificate validation on a deployed host.
+ * The API origin, validated ONCE on first use rather than at module load.
+ *
+ * THE INDIRECTION IS LOAD-BEARING, and the earlier version's premise — "this module is not loaded
+ * until a route handler first runs" — was false. `next build` collects page data by importing every
+ * route handler module with `NODE_ENV=production`, so resolving at module load made the BUILD
+ * require a variable that only means anything at runtime. Measured: `pnpm build` on a clean `.next`
+ * failed with "Failed to collect page data for /api/resumes/[id]", and `docker build` failed at
+ * `RUN pnpm build` — the Dockerfile omits the variable deliberately, because it is a runtime one.
+ *
+ * Nothing is weakened by deferring it. `instrumentation.ts` calls `initBackend()` at server start,
+ * so a deploy with no origin still refuses to serve rather than failing on a user's first sign-in.
+ * A throw leaves the memo unset, so a second call re-runs the check instead of returning a value
+ * that was never validated.
  */
-if (process.env.BUILDCV_ALLOW_SELF_SIGNED === '1') {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('BUILDCV_ALLOW_SELF_SIGNED must not be set in production.');
+function apiOrigin(): string {
+  if (configuredOrigin !== null) return configuredOrigin;
+
+  const origin = resolveApiOrigin();
+
+  // The ASP.NET Core development certificate is self-signed, and Node rejects it. This is the blunt
+  // escape hatch for pointing local dev at the https listener; it is refused in production so a
+  // mis-set variable cannot disable certificate validation on a deployed host. It moved in here with
+  // the origin check, and still runs before the first request because `initBackend()` does.
+  if (process.env.BUILDCV_ALLOW_SELF_SIGNED === '1') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('BUILDCV_ALLOW_SELF_SIGNED must not be set in production.');
+    }
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   }
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+  configuredOrigin = origin;
+  return configuredOrigin;
+}
+
+/**
+ * Runs the configuration checks now, so a misconfigured deploy fails at start rather than on a
+ * user's first sign-in. Idempotent; `instrumentation.ts` is the only caller.
+ */
+export function initBackend(): void {
+  apiOrigin();
 }
 
 /** Refresh this far ahead of `exp` rather than waiting for a 401 — the client contract in CLAUDE.md. */
@@ -68,7 +95,7 @@ export class NoSessionError extends Error {
 
 function apiUrl(path: string): string {
   if (!path.startsWith('/')) throw new Error(`API path must be absolute: ${path}`);
-  return `${API_ORIGIN}/v1${path}`;
+  return `${apiOrigin()}/v1${path}`;
 }
 
 /**

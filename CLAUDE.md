@@ -28,7 +28,11 @@ pnpm exec playwright test e2e/smoke.spec.ts --headed --debug
 
 `BUILDCV_API_ORIGIN` (defaults to `http://localhost:5062` in dev, **required** in production) points at
 the API. `BUILDCV_ALLOW_SELF_SIGNED=1` is the local-only escape hatch for the ASP.NET dev certificate.
-Both are validated at server start via `src/instrumentation.ts`.
+Both are validated at server start via `src/instrumentation.ts` — **not at module load**, and that
+distinction is load-bearing: `next build` collects page data by importing every route handler with
+`NODE_ENV=production`, so a module-level check made the build itself demand a runtime-only variable
+and `docker build` failed at `RUN pnpm build`. Resolve configuration behind a function; let
+`instrumentation.ts` force it at start.
 
 ## The other repository
 
