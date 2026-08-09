@@ -1,3 +1,9 @@
-# sharp backs next/image's optimizer. This app renders no <Image>, so its native build is not run.
+# Which dependencies may run install scripts. pnpm blocks them all by default and refuses to run any
+# command while one is undecided, so every entry here is a deliberate answer rather than a default.
 allowBuilds:
+  # sharp backs next/image's optimizer. This app renders no <Image>, so its native build is not run.
   sharp: false
+  # unrs-resolver is the native module resolver behind eslint-config-next's import rules. Its
+  # postinstall only picks the prebuilt binding for this platform — it compiles nothing and fetches
+  # nothing — and lint has no resolver without it.
+  unrs-resolver: true
