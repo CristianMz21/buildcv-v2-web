@@ -56,6 +56,21 @@ export function AnalysisFlow() {
   const nextKey = useRef(0);
   const makeKey = () => `req-${nextKey.current++}`;
 
+  /**
+   * The exact body that created the posting now in state, so a retry does not create a second one.
+   *
+   * `run` is two calls and only the second is idempotent: `POST /v1/scoring/score` de-duplicates a
+   * (resume, posting) pair, `POST /v1/job-offers/import` de-duplicates nothing. So when the import
+   * succeeded and the score then failed — a throttle, a dropped connection — the user was returned
+   * to the form, pressed the same button again, and left one orphan posting on their account per
+   * attempt. Silent, and it accumulates.
+   *
+   * A ref rather than state because nothing renders from it, and comparing the body rather than a
+   * flag is what keeps it honest: edit one requirement and the posting is genuinely a different one,
+   * so it should be created again.
+   */
+  const postedBody = useRef<string | null>(null);
+
   const onExpired = useCallback(() => router.replace('/login'), [router]);
 
   useEffect(() => {
@@ -122,25 +137,36 @@ export function AnalysisFlow() {
     setRunStep(0);
     setPhase('running');
 
-    try {
-      const created = await readJson<JobPostingResponse>(
-        await fetch('/api/job-offers/import', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title,
-            companyName,
-            requirements: requirements
-              .filter((requirement) => requirement.skill.trim() !== '')
-              .map((requirement) => ({
-                skill: requirement.skill,
-                priority: requirement.priority,
-              })),
-          }),
-        }),
-      );
+    const body = JSON.stringify({
+      title,
+      companyName,
+      requirements: requirements
+        .filter((requirement) => requirement.skill.trim() !== '')
+        .map((requirement) => ({
+          skill: requirement.skill,
+          priority: requirement.priority,
+        })),
+    });
 
-      setPosting(created);
+    try {
+      // Reused when the posting in state was created from this exact body — which is the retry after
+      // a failed score, and the only case where creating it again would be a duplicate rather than a
+      // different posting.
+      let created = postedBody.current === body ? posting : null;
+
+      if (!created) {
+        created = await readJson<JobPostingResponse>(
+          await fetch('/api/job-offers/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+          }),
+        );
+
+        postedBody.current = body;
+        setPosting(created);
+      }
+
       setRunStep(1);
 
       const scored = await readJson<AnalysisResponse>(
@@ -168,6 +194,8 @@ export function AnalysisFlow() {
 
   function restart() {
     setPhase('inputs');
+    // Cleared with the posting it describes, so a new run cannot reuse one the user has left behind.
+    postedBody.current = null;
     setPosting(null);
     setAnalysis(null);
     setRequirements([]);
