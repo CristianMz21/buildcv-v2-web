@@ -25,13 +25,16 @@ decision, not a configuration fix.
 | Route | What it does |
 |---|---|
 | `/login`, `/register` | Session. Tokens never reach the browser; see the BFF section below. |
+| `/forgot-password`, `/reset-password` | Recovery. Answers 503 and says so plainly until a mail provider is configured on the API — it never claims an email is on its way. |
 | `/resumes` | Every CV, with what tells them apart. Create, name, delete. |
 | `/resumes/[id]` | The editor: ten sections, add / correct / remove per entry, live A4 preview. |
+| `/resumes/[id]/print` | The print document, and the PDF export: `@media print`, `break-inside: avoid`. With `?posting=` it is the CV composed for that job — ordered by what answered the posting's requirements, with the gaps named on screen and hidden from the print. |
 | `/resumes/[id]/readability` | The second score. Five sections, renormalized weights, measured advice. |
 | `/resumes/[id]/history` | Every analysis this CV has been through, oldest first. |
 | `/resumes/import` | A document in, a reviewed CV out. The only path that fills `AtsParseability`. |
 | `/analysis` | A CV against a job posting, from the source design. |
-| `/settings` | Email, role, password. |
+| `/settings` | Email, role, password, and account deletion. |
+| `/legal/privacy`, `/legal/terms` | What the software does with a candidate's data, written from the code. **Not publishable as they stand** — four facts about the operator are `null` in `src/app/legal/details.ts` and the pages say so in red rather than going out looking finished. |
 
 ```bash
 cp .env.example .env.local     # point BUILDCV_API_ORIGIN at the running API
