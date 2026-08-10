@@ -10,8 +10,18 @@
   --border-soft: #f1f5f9;
 
   --fg: #111827;
-  --fg-muted: #6b7280;
-  --fg-faint: #9ca3af;
+  /*
+   * Both greys sit one step darker than the source mockup, and the reason is measured rather than
+   * aesthetic. `--fg-faint` was #9ca3af, which is 2.54:1 on white — WCAG AA asks 4.5:1 for text under
+   * 18px, and every use of it here is a 12px caption. The lightest grey that clears the floor on both
+   * white AND --surface-soft is #6b7280, which was the old `--fg-muted`, so muted moves down too and
+   * the two-step hierarchy survives intact.
+   *
+   * The consequence worth knowing: below this floor there is no room for a third, lighter grey. A
+   * caption that needs to recede further has to do it with size or weight, not with less contrast.
+   */
+  --fg-muted: #4b5563;
+  --fg-faint: #6b7280;
   --fg-body: #374151;
 
   --primary: #2563eb;
@@ -28,6 +38,10 @@
 
   --warn: #d97706;
   --warn-bg: #fffbeb;
+  /* The pair --good and --bad already had: a darker tone for TEXT on the tinted background, because
+   * the vivid one is a fill colour and only clears 3.07:1 as type. Its absence is why the "not set"
+   * markers on the legal pages failed contrast — they had nothing else to reach for. */
+  --warn-fg: #92400e;
 
   --bad: #dc2626;
   --bad-bg: #fef2f2;
@@ -61,6 +75,24 @@ body {
 a {
   color: var(--primary);
   text-decoration: none;
+}
+
+/*
+ * A link sitting INSIDE running text is underlined; a link that stands alone is not.
+ *
+ * Colour alone cannot carry it here. The blue is 1.06:1 against the grey it sits in — the WCAG asks
+ * 3:1 before colour may be the only signal — so to a reader who does not separate those two hues the
+ * link is invisible. Underlining is the cheapest of the alternatives and the one that needs no second
+ * colour to be maintained.
+ *
+ * Scoped to <p> and <li> deliberately: navigation, cards and anything styled as a control sit outside
+ * a text block, are found by position rather than by scanning a sentence, and read as underlined
+ * clutter if this is widened.
+ */
+p a,
+li a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 a:hover {

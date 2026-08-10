@@ -15,6 +15,7 @@ pnpm typecheck            # tsc --noEmit
 pnpm lint                 # eslint flat config
 pnpm build                # output: 'standalone'
 pnpm test:e2e             # Playwright — needs a REAL BuildCv.Api running
+pnpm test:a11y            # WCAG AA on the signed-out screens — needs NO API, runs in CI
 pnpm gen:api              # refetch openapi.json and regenerate src/lib/api-schema.d.ts
 pnpm gen:api:check        # contract drift: needs a live API
 pnpm gen:types:check      # regenerate from the COMMITTED openapi.json — needs nothing, runs in CI
@@ -106,6 +107,10 @@ Read it before touching anything score-shaped.
   (`impactPoints`), because the API's claim is that the number was measured, not estimated.
 - **Colour follows `analysis.band`, never client-side thresholds.** The source design cut at 90/70/50;
   `Analysis.Band` cuts at 40/60/80. One rule, one statement — `bandTone` in `src/lib/format.ts`.
+- **Text takes the `-fg` token; a fill takes the vivid one.** `--good` and `--warn` are 3.3:1 and
+  3.2:1 on white — the 3:1 a bar or a dot owes, short of the 4.5:1 a word owes. Three of the five
+  bands in `TONES` were failing that way until it was measured. Reaching for the brighter colour
+  looks like a small design choice and puts a score label back under the floor.
 - **Never re-implement a server rule.** No client-side skill matcher, no band arithmetic. The scoring
   engine recognises alternative spellings (`React.js` satisfies `React`), so a local comparison would
   contradict the score next to it — see `missingSkills`, which reads the server's own recommendations.
@@ -123,6 +128,18 @@ Read it before touching anything score-shaped.
 `e2e/smoke.spec.ts` runs against a **real** API and **fails on any console error** — that assertion is
 the point, because the regression it was written for still rendered its shell while React threw inside
 it. Nothing is mocked: a mock is written from the same belief that was wrong.
+
+`e2e/a11y.spec.ts` is the other half, and the split is about what each can run against. It covers the
+six screens a visitor sees **before** they have an account, so it needs no API and therefore runs in
+CI — which is the whole reason it is a separate file. It asserts WCAG AA through axe and, separately,
+that every control shows a visible focus ring: axe reads the DOM and cannot tell you whether a
+stylesheet reset `outline: none` and forgot to put anything back. Both files share
+`failOnConsoleErrors` from `e2e/console-errors.ts`; the exclusion list in it is the part that grows,
+and it has to grow in one place.
+
+Anything the dev server injects is excluded by selector (`nextjs-portal`, `#next-logo`). Those are
+`next dev` devtools, they are not in the built image, and a suite that failed on them would be
+failing on its own harness — which teaches the reader to ignore its output.
 
 Playwright starts its own dev server on :3210 unless `BUILDCV_WEB_ORIGIN` is set, so a run cannot pass
 against a stale server. Timeouts are generous because the dev server compiles each route on first hit.
@@ -182,12 +199,13 @@ running it, or decide knowingly to keep them.
 
 ## Guardrails
 
-- **`.github/workflows/ci.yml`** runs two jobs. `checks` runs lint, typecheck, `gen:types:check` and
-  build; `image` builds the container and runs `scripts/verify-image.sh` against it. It stops there
-  deliberately: `test:e2e` and `gen:api:check` both need a running `BuildCv.Api` from another
-  repository, and a job that mocked one would assert nothing. The `image` job needs no API and no
-  credentials, which is why it belongs here — and it is the only job that can fail on a property of
-  the thing that actually ships.
+- **`.github/workflows/ci.yml`** runs three jobs. `checks` runs lint, typecheck, `gen:types:check` and
+  build; `image` builds the container and runs `scripts/verify-image.sh` against it; `a11y` opens a
+  browser on the six signed-out screens. It stops there deliberately: `test:e2e` and `gen:api:check`
+  both need a running `BuildCv.Api` from another repository, and a job that mocked one would assert
+  nothing. What the last two have in common is that they need no API and no credentials — `image` is
+  the only job that can fail on a property of the thing that ships, and `a11y` is the only one that
+  opens a browser at all.
 - **Dependency advisories are answered, not carried.** `pnpm audit --prod` must report clean. Two
   transitive packages sit under `overrides:` in **`pnpm-workspace.yaml`** — they arrive under `next`,
   which pins ranges that still resolve to vulnerable versions, and an override is the only lever a

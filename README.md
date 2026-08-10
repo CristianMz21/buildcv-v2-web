@@ -159,25 +159,34 @@ code.
 | "Apply to resume" / "Undo" | **Removed.** No endpoint edits a CV from a recommendation. The toggle only moves the projection, and says so. |
 | CURRENT → PROJECTED | **Kept, with the caveat stated on screen**: impacts are each measured alone and are not guaranteed to add up. |
 | — | **`isStale` added.** It has no slot in the design and it is the field that says the score describes a CV the candidate no longer has. |
+| The mockup's greys and status colours | **Darkened one step, and only where they carry text.** The caption grey was 2.54:1 on white and the amber 3.07:1 on its own tint; WCAG AA asks 4.5:1 of text under 18px. Fills keep the vivid tone — a bar or a dot only owes 3:1 — so the change is invisible on every swatch and legible in every sentence. Measured, not eyeballed, and `e2e/a11y.spec.ts` fails if it drifts back. |
+| Links inside a paragraph | **Underlined.** The blue sat 1.06:1 from the grey around it, which means colour alone was carrying the signal — and a reader who does not separate those hues saw no link at all. Links outside a text block are unchanged. |
 
-Two rules the code follows that are worth not undoing:
+Three rules the code follows that are worth not undoing:
 
 - **Colour follows `analysis.band`, never a second set of thresholds.** The design coloured at
   90/70/50 while `Analysis.Band` cuts at 40/60/80 — keeping both would let the ring and the label
   disagree about one score.
 - **Nothing re-implements a server rule.** No client-side skill matcher, no client-side band
   arithmetic. One statement per rule.
+- **A colour that carries text uses the `-fg` token; a colour that fills a shape uses the vivid one.**
+  `--good` and `--warn` are 3.3:1 and 3.2:1 on white — enough for a bar, short of the 4.5:1 a word
+  needs. Three of the five score bands were failing that way before it was measured.
 
 ## Not implemented, and why
 
-Every item here needs a backend that does not exist — a mailer, a file store, a PDF generator, an
-aggregation endpoint. None is a shortcut taken on the client.
+Every item here needs a backend that does not exist — a mailer, a file store, an aggregation
+endpoint. None is a shortcut taken on the client.
+
+Two rows left this table since it was written. **Export to PDF** ships: `/resumes/[id]/print` is a
+print-media document the browser saves, which needs no server-side renderer. **Password reset** ships
+end to end and answers 503 until a mail provider is configured on the API — the screen says so rather
+than pretending an email is on its way.
 
 | Missing | What it would need |
 |---|---|
 | Dashboard | Most of the mockup's tiles have no source. There is no per-account analysis feed — only `GET /v1/resumes/{id}/analyses` — so a cross-CV timeline cannot be assembled honestly. |
-| Export to PDF | No renderer, server-side or otherwise. |
-| Social login, password reset, email verification, 2FA | No mailer, no external identity provider. |
+| Social login, email verification, 2FA | No external identity provider, and no mailer wired up. |
 | ⌘K search | No search endpoint. |
 | Notifications, billing, teams, admin analytics | No endpoints at all. |
 | A per-CV ATS badge on the list | A match score needs a posting; a readability score is a `POST` that creates a report, not a field on a list row. |

@@ -1,4 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+
+import { failOnConsoleErrors } from './console-errors';
 
 /**
  * The path a candidate actually walks, end to end, against a real API.
@@ -35,24 +37,6 @@ const CV = [
   'SKILLS',
   'C#, Docker, SQL Server',
 ].join('\n');
-
-/**
- * Fails the test on any console error.
- *
- * This is the assertion that would have caught the crash: the screen still RENDERED its shell, so a
- * check on visible text passed while React had thrown inside it. Favicon 404s are excluded because
- * they say nothing about the app.
- */
-function failOnConsoleErrors(page: Page): string[] {
-  const errors: string[] = [];
-
-  page.on('console', (message) => {
-    if (message.type() === 'error' && !message.text().includes('favicon')) errors.push(message.text());
-  });
-  page.on('pageerror', (error) => errors.push(error.message));
-
-  return errors;
-}
 
 test('a candidate can register, import a CV, edit it and read its scores', async ({ page }) => {
   const errors = failOnConsoleErrors(page);

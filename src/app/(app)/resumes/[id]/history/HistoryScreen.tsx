@@ -218,7 +218,7 @@ export function HistoryScreen({ resumeId }: { resumeId: string }) {
                     <span
                       className={styles.runDelta}
                       style={{
-                        color: delta === null ? 'var(--fg-faint)' : delta >= 0 ? 'var(--good)' : 'var(--bad)',
+                        color: delta === null ? 'var(--fg-faint)' : delta >= 0 ? 'var(--good-fg)' : 'var(--bad-fg)',
                       }}
                     >
                       {/* Withheld across a model change, because the two numbers were produced by
