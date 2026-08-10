@@ -311,13 +311,23 @@ running it, or decide knowingly to keep them.
 
 ## Guardrails
 
-- **`.github/workflows/ci.yml`** runs three jobs. `checks` runs lint, typecheck, `gen:types:check` and
-  build; `image` builds the container and runs `scripts/verify-image.sh` against it; `a11y` opens a
-  browser on the six signed-out screens. It stops there deliberately: `test:e2e` and `gen:api:check`
-  both need a running `BuildCv.Api` from another repository, and a job that mocked one would assert
-  nothing. What the last two have in common is that they need no API and no credentials — `image` is
-  the only job that can fail on a property of the thing that ships, and `a11y` is the only one that
-  opens a browser at all.
+- **`.github/workflows/ci.yml`** runs four jobs. `checks` runs lint, typecheck, `gen:types:check`,
+  audit and build; `image` builds the container and runs `scripts/verify-image.sh` against it; `a11y`
+  opens a browser on the six signed-out screens; `publish` pushes the image to GHCR. It stops there
+  deliberately: `test:e2e` and `gen:api:check` both need a running `BuildCv.Api` from another
+  repository, and a job that mocked one would assert nothing. What the first three have in common is
+  that they need no API and no credentials — `image` is the only one that can fail on a property of
+  the thing that ships, and `a11y` is the only one that opens a browser at all.
+
+  **`publish` runs only on `main` and only after `image` passed**, so what reaches the registry is an
+  artifact whose behaviour was asserted rather than one that merely compiled. It exists because
+  pushing from a laptop failed in both the ways a laptop fails: a personal token needed a
+  `write:packages` scope neither session had — and `docker login` **succeeds** without it, so a green
+  login proves nothing and only the push reveals the refusal — while the local `docker build` broke on
+  corepack timing out against the npm registry, with and without host networking, on a commit CI built
+  without noticing. Tags are the commit SHA **and** `latest`; deploy the SHA. `latest` in a registry is
+  what once made this repo's own check report HSTS missing from an image twenty-one minutes older than
+  the commit that added it.
 - **Dependency advisories are answered, not carried.** `pnpm audit --prod` runs in CI and blocks, plus
   once a week on a schedule — advisories are published against code that has not changed, so a repo
   with no pull requests that week would otherwise learn nothing. Two transitive packages sit under
