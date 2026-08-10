@@ -26,6 +26,17 @@ export default async function LoginPage() {
 
         <LoginForm />
 
+        {/*
+          Kept visible rather than hidden when the server has no mailer. Knowing whether one is
+          configured would mean probing /auth/password-reset on every page load — and that endpoint
+          shares the 5-per-minute auth window with sign-in, so the probe would spend the budget of
+          people who CAN get in, to hide a link from someone who cannot. The destination says
+          plainly that recovery is switched off; that costs one click and no one else's window.
+        */}
+        <p className={styles.hint} style={{ textAlign: 'center' }}>
+          <Link href="/forgot-password">Forgotten your password?</Link>
+        </p>
+
         <p className={styles.hint} style={{ textAlign: 'center' }}>
           New here? <Link href="/register">Create an account</Link>
         </p>
