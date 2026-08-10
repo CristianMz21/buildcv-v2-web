@@ -1,0 +1,80 @@
+.wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  font: 500 13px var(--font);
+  color: var(--fg-muted);
+}
+
+.title {
+  font: 700 26px var(--font);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+
+.lead {
+  font: 400 14.5px/1.65 var(--font);
+  color: var(--fg-muted);
+  margin: 0 0 28px;
+}
+
+/*
+ * The banner an unfinished page wears. Deliberately loud: this is the one page in the product whose
+ * half-finished state is invisible from the outside, because prose reads as prose whether or not the
+ * facts in it are real.
+ */
+.draft {
+  border: 1px solid var(--bad-border);
+  background: var(--bad-bg);
+  color: var(--bad);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font: 500 13px/1.55 var(--font);
+  margin: 0 0 28px;
+}
+
+.section {
+  margin-top: 30px;
+}
+
+.heading {
+  font: 700 15px var(--font);
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+}
+
+.body {
+  font: 400 14px/1.7 var(--font);
+  color: var(--fg);
+  margin: 0 0 10px;
+}
+
+.list {
+  font: 400 14px/1.7 var(--font);
+  color: var(--fg);
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.list li {
+  margin-bottom: 4px;
+}
+
+.unset {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border-radius: 4px;
+  padding: 0 5px;
+  font: 600 13px var(--font-mono);
+}
+
+.updated {
+  margin-top: 36px;
+  font: 400 12.5px var(--font);
+  color: var(--fg-faint);
+}
