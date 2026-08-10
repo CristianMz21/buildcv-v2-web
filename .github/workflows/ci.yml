@@ -10,6 +10,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Monday morning, because the audit above only answers a question at the moment somebody happens to
+  # open a pull request. Advisories are published against code that has not changed — the critical RCE
+  # this repo shipped for weeks was disclosed long after the version was pinned — so a repository with
+  # no traffic that week would learn nothing. This is the run that has no author waiting on it.
+  schedule:
+    - cron: '0 6 * * 1'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -34,6 +40,18 @@ jobs:
 
       # --frozen-lockfile so CI cannot quietly resolve a tree the lockfile does not describe.
       - run: pnpm install --frozen-lockfile
+
+      # Blocking, and scoped to what actually ships.
+      #
+      # This exists because 34 advisories accumulated unnoticed — one of them a critical RCE in the
+      # framework — and were found by a deprecation warning that happened to scroll past during an
+      # unrelated install. CLAUDE.md had already said the audit must be clean; nothing enforced it,
+      # which is the same shape as every other rule this repo learned to stop trusting to prose.
+      #
+      # --prod on purpose: a devDependency does not reach a user, and failing unrelated pull requests
+      # on a linter's transitive advisory is how a security gate gets switched off. The overrides in
+      # pnpm-workspace.yaml keep the full audit clean anyway.
+      - run: pnpm audit --prod
 
       - run: pnpm lint
 

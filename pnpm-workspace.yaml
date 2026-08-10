@@ -26,3 +26,7 @@ overrides:
   # Inherited libvips CVEs. Unreachable in this app twice over: no <Image> is rendered, and the native
   # binding is never built (see allowBuilds above). Raised anyway so an audit reports what it means.
   sharp: '>=0.35.0'
+  # Quadratic CPU consumption parsing `!!omap`, reached only through eslint's own config loader on
+  # this project's own files. Raised because the alternative is a permanently non-empty `pnpm audit`,
+  # and a report that always has one line in it is a report nobody reads to the end.
+  js-yaml: '>=4.3.1'

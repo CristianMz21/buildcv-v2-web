@@ -99,6 +99,30 @@ code=$(status_of /login)
 [ "$code" = "200" ] || fail "expected 200 on /login, got $code"
 pass "serves /login ($code)"
 
+# ── 2b. The image's own HEALTHCHECK must actually turn it healthy ─────────────
+#
+# EVERY CHECK ABOVE PROBES FROM THE HOST, through the published port, and that is precisely the blind
+# spot that let a real defect live: the container was permanently UNHEALTHY while answering every one
+# of those probes correctly, because its healthcheck ran INSIDE and resolved `localhost` to ::1 while
+# Node listens on IPv4. Serving correctly and reporting healthy are two different claims.
+echo "Health status:"
+waited=0
+until [ "$(docker inspect -f '{{.State.Health.Status}}' "$NAME" 2>/dev/null)" = "healthy" ]; do
+  waited=$((waited + 1))
+  if [ "$waited" -gt 90 ]; then
+    fail "never reported healthy (last: $(docker inspect -f '{{.State.Health.Status}}' "$NAME" 2>/dev/null))"
+  fi
+  sleep 1
+done
+pass "reports healthy in ${waited}s"
+
+# Pins the reason rather than the symptom. If a future change makes the server dual-stack this line
+# starts passing on `localhost` too and can go; until then, it documents why the probe is written the
+# way it is, in a place that fails when someone "tidies" it back.
+docker exec "$NAME" wget -qO- -T3 http://127.0.0.1:3000/api/health > /dev/null 2>&1 \
+  || fail "127.0.0.1 is refused from inside the container — the healthcheck cannot work"
+pass "127.0.0.1 answers from inside"
+
 # ── 3. The headers this app argues about must survive into the artifact ───────
 echo "Response headers:"
 headers=$(curl -sSI -m 10 "http://localhost:$PORT/login" | tr '[:upper:]' '[:lower:]')
