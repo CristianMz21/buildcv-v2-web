@@ -32,7 +32,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     return relay(await anonymousPost('/auth/password-reset', { email }));
   } catch (error) {
-    if (error instanceof ApiUnreachableError) return unreachable();
+    if (error instanceof ApiUnreachableError) return unreachable(error);
     throw error;
   }
 }
