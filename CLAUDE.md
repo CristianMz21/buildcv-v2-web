@@ -168,6 +168,22 @@ The consequences that constrain new code:
   the 503/504 as the same header, and is written to stdout by `unreachable()` — `onRequestError` only
   sees errors that escape a handler, and an outage is caught and answered, so without that line the
   API and the browser would both hold an id the server between them never mentioned.
+- **`SameSite` protects nothing on the deployed hostname, so `src/middleware.ts` checks `Origin`.**
+  The session cookies are `sameSite: 'lax'`, which is correct and is not sufficient here: "site" means
+  the registrable domain, and **`azurecontainerapps.io` is not in the Public Suffix List** — checked
+  against the published list with controls, since `azurestaticapps.net` *is* in it and an invented
+  domain is not. So every Container App in the world shares one registrable domain and is same-site
+  with this one; a forged POST from any other tenant's app would carry these cookies, and `Strict`
+  would not help because it is computed on the same site. Anybody can deploy a Container App.
+
+  The middleware refuses any unsafe method whose `Origin` does not match the host the request arrived
+  on. Hosts rather than full origins, because the ingress terminates TLS and the scheme inside the
+  container is not the browser's. Safe methods are untouched — the liveness probe sends no `Origin`,
+  and refusing GET would break the probe while protecting nothing. A missing `Origin` on an unsafe
+  method is refused too: browsers always send one, so the only callers excluded are scripts, which is
+  the population the check exists to make prove themselves. **A custom domain would make `SameSite`
+  sound again; this check stays regardless**, because it does not depend on which hostname we serve
+  from.
 - **Path segments that reach the API path must be gated against a closed list** (`isResumeSection` in
   `src/lib/sections.ts`). Without it the BFF is an open proxy for any future `/v1/resumes/{id}/…` route.
 - **Never call `request.json()`. Use `readJsonBody` from `src/lib/body.ts`.** App Router handlers do
