@@ -132,6 +132,9 @@ export function EditorScreen({ resumeId }: { resumeId: string }) {
           <div style={{ display: 'flex', gap: 8 }}>
             {/* Readability first in reading order but secondary in weight: it needs no posting, so it
                 is the answer available right now, while an analysis needs a job to score against. */}
+            <Link href={`/resumes/${resumeId}/print`} className="btn">
+              Print or save as PDF
+            </Link>
             <Link href={`/resumes/${resumeId}/history`} className="btn">
               History
             </Link>

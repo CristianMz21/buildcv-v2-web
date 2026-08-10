@@ -1,0 +1,149 @@
+/*
+ * The CV as paper.
+ *
+ * NO `size` IN `@page`, and that is a decision rather than an omission. This product is launching in
+ * Colombia, the United States and everywhere else — Carta and Letter in the first two, A4 in most of
+ * the third. The browser already knows which paper its printer holds; naming one here would give
+ * roughly half the users a document with the wrong margins. Everything below is fluid so it composes
+ * on either sheet.
+ */
+@page {
+  margin: 16mm 14mm;
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 0;
+  color: var(--fg-muted);
+}
+
+.chrome {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.document {
+  background: #fff;
+  color: #111827;
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 190mm;
+  margin: 0 auto;
+  padding: 28px 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.head {
+  margin-bottom: 14px;
+}
+
+.name {
+  font: 700 22px var(--font);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.contact {
+  margin: 4px 0 0;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.section {
+  margin-top: 16px;
+}
+
+.heading {
+  font: 700 11px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #374151;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 3px;
+  margin: 0 0 8px;
+}
+
+.entry {
+  margin-bottom: 10px;
+}
+
+.entryHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.entryTitle {
+  font-weight: 600;
+}
+
+.entryMeta {
+  color: #6b7280;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.prose {
+  margin: 3px 0 0;
+}
+
+.meta {
+  margin: 3px 0 0;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.bullets {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.bullets li {
+  margin-bottom: 2px;
+}
+
+.inline {
+  margin: 0;
+}
+
+@media print {
+  /* The action that produced this page is not part of the document it produced. */
+  .chrome {
+    display: none;
+  }
+
+  .document {
+    /* On paper the sheet IS the border. Ink spent on a frame and a shadow is ink wasted. */
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    max-width: none;
+    font-size: 10.5pt;
+  }
+
+  .name {
+    font-size: 18pt;
+  }
+
+  /*
+   * AN ENTRY IS NOT SPLIT ACROSS A PAGE BOUNDARY. A role whose title sits at the foot of one page
+   * and whose bullet points start the next is the single thing that makes an exported CV look
+   * machine-made, and it is the one thing the browser will do by default.
+   */
+  .entry {
+    break-inside: avoid;
+  }
+
+  /* A heading alone at the foot of a page is a promise the page does not keep. */
+  .heading {
+    break-after: avoid;
+  }
+}

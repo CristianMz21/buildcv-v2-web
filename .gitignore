@@ -9,6 +9,9 @@ next-env.d.ts
 
 test-results/
 playwright-report/
+# Where the Playwright MCP browser writes snapshots, screenshots and any file it is handed. Tool
+# output, and its allowed roots are inside the repo — so without this it lands in `git status`.
+.playwright-mcp/
 
 # Agent skills, vendored by `npx autoskills` and reconstructible from it — skills-lock.json is the
 # committed record. The symlinks under .claude/skills point into .agents, so both go together: a

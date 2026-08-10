@@ -56,6 +56,28 @@ export interface SectionSpec {
    * change to the API, not to this screen.
    */
   clears?: readonly { key: string; noun: string }[];
+  /**
+   * The entry's own paragraph, for an EXPORT rather than for the list.
+   *
+   * `describe` and `detail` are the two lines the editor shows in a list, and a CV printed from those
+   * alone would carry job titles and dates with nothing underneath — an index of a career rather than
+   * a CV. The substance lives in the three accessors below, and they are stated in this file for the
+   * same reason every other field name is: so the print view cannot address a property this table
+   * does not already know about.
+   */
+  prose?: (entry: Record<string, unknown>) => string | null;
+  /** The entry's bullet points, or none. */
+  bullets?: (entry: Record<string, unknown>) => string[];
+  /** A short supporting line — a project's technologies, say. */
+  meta?: (entry: Record<string, unknown>) => string | null;
+  /**
+   * How an export lays this section out. Blocks by default.
+   *
+   * `inline` is for the sections whose entries are a word each: twenty skills as twenty blocks is
+   * twenty paragraphs and a page of whitespace, and nobody reads a CV that way. Stated here rather
+   * than as a list of section names in the print view, so a new section decides its own shape.
+   */
+  layout?: 'blocks' | 'inline';
 }
 
 /** A `yyyy-MM-dd` string, which is the only precision `<input type="date">` can hold. */
@@ -132,6 +154,13 @@ const lines = (property: string) =>
   (entry: Record<string, unknown>): string =>
     Array.isArray(entry[property]) ? (entry[property] as string[]).join('\n') : '';
 
+/** A `string[]` property as itself. `lines` joins for a textarea; an export wants the items. */
+const listOf = (property: string) =>
+  (entry: Record<string, unknown>): string[] =>
+    Array.isArray(entry[property])
+      ? (entry[property] as unknown[]).filter((item): item is string => typeof item === 'string')
+      : [];
+
 export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
   experiences: {
     label: 'Experience',
@@ -148,6 +177,8 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     clears: [{ key: 'highlights', noun: 'bullet points' }],
     describe: (entry) => `${text(entry, 'position')} · ${text(entry, 'organization')}`,
     detail: (entry) => `${text(entry, 'type')} · ${period(entry)}`,
+    prose: (entry) => text(entry, 'summary') || null,
+    bullets: listOf('highlights'),
   },
 
   educations: {
@@ -177,6 +208,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     clears: [{ key: 'keywords', noun: 'alternative spellings' }],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => text(entry, 'level') || null,
+    layout: 'inline',
   },
 
   projects: {
@@ -194,6 +226,9 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     ],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => period(entry) || null,
+    prose: (entry) => text(entry, 'description') || null,
+    bullets: listOf('highlights'),
+    meta: (entry) => listOf('technologies')(entry).join(' · ') || null,
   },
 
   certificates: {
@@ -221,6 +256,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     ],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => text(entry, 'level') || null,
+    layout: 'inline',
   },
 
   awards: {
@@ -234,6 +270,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     ],
     describe: (entry) => text(entry, 'title'),
     detail: (entry) => text(entry, 'awarder') || null,
+    prose: (entry) => text(entry, 'summary') || null,
   },
 
   publications: {
@@ -248,6 +285,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     ],
     describe: (entry) => text(entry, 'title'),
     detail: (entry) => text(entry, 'publisher') || null,
+    prose: (entry) => text(entry, 'summary') || null,
   },
 
   interests: {
@@ -258,6 +296,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
       { kind: 'lines', name: 'keywords', label: 'Keywords', placeholder: 'One per line', read: lines('keywords') },
     ],
     describe: (entry) => text(entry, 'name'),
+    layout: 'inline',
   },
 
   references: {
@@ -273,6 +312,7 @@ export const SECTION_SPECS: Record<ResumeSection, SectionSpec> = {
     ],
     describe: (entry) => text(entry, 'name'),
     detail: (entry) => [text(entry, 'position'), text(entry, 'company')].filter(Boolean).join(' · ') || null,
+    prose: (entry) => text(entry, 'referenceText') || null,
   },
 };
 
