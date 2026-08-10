@@ -79,22 +79,45 @@ export default function PrivacyPage() {
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.heading}>Nothing is sent to anyone else</h2>
+        <h2 className={styles.heading}>Who else your data passes through</h2>
         <p className={styles.body}>
-          There is no analytics, no advertising, no error-reporting service and no AI provider in this
-          product. Your CV is never sent to a third party, because there is no third party: the
-          scoring engine is deterministic code running on this service&rsquo;s own servers. The
-          browser is blocked from contacting any other origin by this site&rsquo;s content security
-          policy, so a bug could not do it either.
+          <strong>One company, and it is worth being exact about it.</strong> Traffic to this site
+          reaches us through Cloudflare, which filters automated abuse and denial-of-service attacks
+          before requests arrive. Cloudflare terminates the encrypted connection, which means that in
+          transit it is technically able to see what you send &mdash; including a CV you are saving.
+          It does not store your CV and we do not send it anything on purpose; it is a road your data
+          travels, not a place it is kept.
+        </p>
+        <p className={styles.body}>
+          It is here because without it a single automated attacker can make this service unusable for
+          everyone, and the alternative was leaving that undefended. If you would rather not have your
+          data cross a third party at all, that is a reasonable position and this is the paragraph
+          that lets you make the choice.
+        </p>
+        <p className={styles.body}>
+          <strong>Beyond that, nothing.</strong> No analytics, no advertising, no error-reporting
+          service, no AI provider. Your CV is never sold, never used to train anything, and never
+          shown to another user. The scoring engine is deterministic code running on this
+          service&rsquo;s own servers, not a model and not an external API. Your browser is blocked
+          from contacting any other origin by this site&rsquo;s content security policy, so a bug in
+          our own code could not send your data elsewhere either.
         </p>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.heading}>Cookies</h2>
         <p className={styles.body}>
-          Two, both strictly necessary to keep you signed in. They are set by this site, cannot be
-          read by any script, and there are no others — no analytics cookies, no tracking pixels,
-          nothing to consent to because nothing optional is set.
+          Two are ours, both strictly necessary to keep you signed in. They are set by this site,
+          cannot be read by any script, and neither one identifies you to anybody else.
+        </p>
+        <p className={styles.body}>
+          Cloudflare sets one of its own to tell people apart from bots. We do not read it and it
+          carries nothing you typed. It is listed here rather than left out because a cookie policy
+          that only mentions the cookies it likes is not a cookie policy.
+        </p>
+        <p className={styles.body}>
+          <strong>There are no others.</strong> No analytics cookies, no tracking pixels, nothing
+          optional &mdash; which is why this site asks you to consent to nothing.
         </p>
       </section>
 
