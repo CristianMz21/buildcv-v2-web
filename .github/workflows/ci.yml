@@ -51,6 +51,12 @@ jobs:
       # --prod on purpose: a devDependency does not reach a user, and failing unrelated pull requests
       # on a linter's transitive advisory is how a security gate gets switched off. The overrides in
       # pnpm-workspace.yaml keep the full audit clean anyway.
+      #
+      # It really does fail the job: `pnpm audit --prod` exits 1 when it finds something. Checked
+      # against a throwaway package.json pinning a known-vulnerable postcss rather than assumed —
+      # worth doing, because the equivalent in the API repository (`dotnet list package
+      # --vulnerable`) prints its findings and still exits 0, so a reader moving between the two
+      # cannot carry the assumption across.
       - run: pnpm audit --prod
 
       - run: pnpm lint
