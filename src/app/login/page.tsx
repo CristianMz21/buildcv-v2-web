@@ -40,6 +40,13 @@ export default async function LoginPage() {
         <p className={styles.hint} style={{ textAlign: 'center' }}>
           New here? <Link href="/register">Create an account</Link>
         </p>
+
+        {/* Where the decision to hand over a CV is actually made. Buried in a footer nobody reads is
+            where these normally go; this product's claims are unusually checkable, so they are worth
+            a click from the page where someone is deciding whether to trust it. */}
+        <p className={styles.hint} style={{ textAlign: 'center' }}>
+          <Link href="/legal/privacy">Privacy</Link> · <Link href="/legal/terms">Terms</Link>
+        </p>
       </div>
     </main>
   );
