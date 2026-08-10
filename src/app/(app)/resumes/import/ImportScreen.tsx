@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Check, Upload, Warning } from '@/components/icons';
-import type { ProblemDetails, ResumeSummaryResponse } from '@/lib/contracts';
+import type { ResumeSummaryResponse } from '@/lib/contracts';
+import { fieldErrorsOf, messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import { CONTACT_FIELDS, DRAFT_SECTIONS, fieldPath, type DraftField } from './draftShape';
 import styles from './import.module.css';
@@ -21,12 +22,35 @@ interface Proposal {
   };
 }
 
-class SessionExpired extends Error {}
-
 const ACCEPTED = '.pdf,.docx,.txt';
+const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
 
-/** Anything the extractor did not call High. The mark is a nudge to read, not a claim of wrongness. */
-const isUnsure = (confidence: string) => confidence !== 'High';
+/**
+ * Refused HERE rather than by the API, because `accept` refuses nothing.
+ *
+ * It is a hint to the file picker: it does not apply to a drop, and it does not apply to a `.doc`
+ * renamed to `.pdf`. The API's ceiling for this endpoint is 5 MiB, so without this a candidate on a
+ * slow connection uploads a 40 MB scan in full, waits for it, and is then told no.
+ */
+const MAX_BYTES = 5 * 1024 * 1024;
+
+/** Where a corrected draft survives a reload. Session-scoped on purpose — see `remember`. */
+const DRAFT_KEY = 'buildcv.import.draft';
+
+/**
+ * What a confidence value asks of the candidate — and it is not the same question in every case.
+ *
+ * One badge for everything the extractor did not call `High` conflated two opposite things. The
+ * API's own enum says so: `NotExtracted` is "the honest empty… the review screen should show it as
+ * 'please fill in' — NOT as a failure", while `Low` is a positional guess that is "wrong more often
+ * than right on the hard 35%". Telling a candidate to double-check a field the parser deliberately
+ * declined to invent teaches them to distrust the marks, and then they stop reading the ones that
+ * matter.
+ */
+type Asks = 'add' | 'check' | null;
+
+const asksFor = (confidence: string): Asks =>
+  confidence === 'High' ? null : confidence === 'NotExtracted' ? 'add' : 'check';
 
 export function ImportScreen() {
   const router = useRouter();
@@ -42,7 +66,56 @@ export function ImportScreen() {
 
   const onExpired = useCallback(() => router.replace('/login'), [router]);
 
+  const forget = useCallback(() => sessionStorage.removeItem(DRAFT_KEY), []);
+
+  /**
+   * A CORRECTED DRAFT SURVIVES A RELOAD, and only a reload.
+   *
+   * Correcting what the extractor missed is twenty minutes of work, and all of it lived in React
+   * state: one stray refresh, one back button, one restored tab, and the candidate re-uploads and
+   * starts the whole review again. The document itself is still never stored — that promise is about
+   * the file and it holds — but this is a person's CV, so it goes in `sessionStorage` rather than
+   * `localStorage`: it dies with the tab, and it is cleared the moment the CV exists.
+   */
+  useEffect(() => {
+    const saved = sessionStorage.getItem(DRAFT_KEY);
+    if (!saved) return;
+
+    try {
+      const kept = JSON.parse(saved) as { proposal: Proposal; draft: Draft };
+      setProposal(kept.proposal);
+      setDraft(kept.draft);
+    } catch {
+      // A shape this build cannot read is not worth a message. The upload screen IS the recovery.
+      sessionStorage.removeItem(DRAFT_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (proposal && draft) sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ proposal, draft }));
+  }, [proposal, draft]);
+
   async function propose(file: File) {
+    const dot = file.name.lastIndexOf('.');
+    const extension = dot === -1 ? '' : file.name.slice(dot).toLowerCase();
+
+    if (!ACCEPTED_EXTENSIONS.includes(extension)) {
+      return setError(
+        extension
+          ? `${extension} is not a format this reads. Upload a PDF, a DOCX or a TXT.`
+          : 'That file has no extension. Upload a PDF, a DOCX or a TXT.',
+      );
+    }
+
+    if (file.size > MAX_BYTES) {
+      // Named in the units the file manager shows, and with the reason a CV is usually over it: a
+      // scan. Which is also the case the parser cannot read at all, since there is no OCR.
+      return setError(
+        `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB and the limit is 5 MB. A scanned CV ` +
+          'is both too large and unreadable to a parser — export it from your editor as PDF instead.',
+      );
+    }
+
     setBusy(true);
     setError(null);
     setFieldErrors({});
@@ -51,22 +124,17 @@ export function ImportScreen() {
       const body = new FormData();
       body.append('file', file);
 
-      const response = await fetch('/api/resumes/import/propose', { method: 'POST', body });
-      if (response.status === 401) throw new SessionExpired();
+      const value = await readJson<Proposal>(
+        await fetch('/api/resumes/import/propose', { method: 'POST', body }),
+      );
 
-      if (!response.ok) {
-        const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
-        throw new Error(problem.detail ?? `That document could not be read (${response.status}).`);
-      }
-
-      const value = (await response.json()) as Proposal;
       setProposal(value);
       // A copy the candidate edits. The proposal itself is kept untouched so the confidence marks
       // still describe what the extractor said rather than what has since been corrected.
       setDraft(structuredClone(value.draft));
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'That document could not be read.');
+      setError(messageOf(caught, 'That document could not be read.'));
     } finally {
       setBusy(false);
     }
@@ -80,29 +148,29 @@ export function ImportScreen() {
     setFieldErrors({});
 
     try {
-      const response = await fetch('/api/resumes/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(draft),
-      });
-      if (response.status === 401) throw new SessionExpired();
+      const summary = await readJson<ResumeSummaryResponse>(
+        await fetch('/api/resumes/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draft),
+        }),
+      );
 
-      if (!response.ok) {
-        const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
-        // Keyed by path, which is the whole reason this endpoint answers with a validation problem:
-        // forty fields fail together and each one marks its own input.
-        setFieldErrors(problem.errors ?? {});
-        throw new Error(
-          problem.errors
-            ? 'Some fields could not be accepted. They are marked below.'
-            : (problem.detail ?? 'The CV could not be created.'),
-        );
-      }
-
-      setCreated((await response.json()) as ResumeSummaryResponse);
+      setCreated(summary);
+      // The CV exists now, so the draft has nothing left to protect.
+      forget();
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'The CV could not be created.');
+
+      // Keyed by path, which is the whole reason this endpoint answers with a validation problem:
+      // forty fields fail together and each one marks its own input.
+      const fields = fieldErrorsOf(caught);
+      setFieldErrors(fields);
+      setError(
+        Object.keys(fields).length > 0
+          ? 'Some fields could not be accepted. They are marked below.'
+          : messageOf(caught, 'The CV could not be created.'),
+      );
     } finally {
       setBusy(false);
     }
@@ -240,6 +308,23 @@ export function ImportScreen() {
   const marks = new Map(proposal.confidence.fields.map((field) => [field.path, field]));
   const contact = (draft.contact ?? {}) as Record<string, unknown>;
 
+  /**
+   * What the panel above already claims is required, actually enforced.
+   *
+   * It said "Name and email are required to create the CV" and then let the button submit anyway:
+   * the API answered 400, and the candidate learned the rule from a red banner after a round trip.
+   * The extractor leaves `fullName` blank often enough that this is the ordinary path, not the edge.
+   */
+  const filled = (key: string): boolean => {
+    const value = contact[key];
+    return typeof value === 'string' && value.trim() !== '';
+  };
+
+  const missing = [
+    filled('fullName') ? null : 'a full name',
+    filled('email') ? null : 'an email',
+  ].filter((item): item is string => item !== null);
+
   const renderField = (
     field: DraftField,
     path: string[],
@@ -260,7 +345,10 @@ export function ImportScreen() {
             : String(value);
 
     const invalid = Boolean(errors?.length);
-    const unsure = !invalid && mark && isUnsure(mark.confidence);
+    const asks = invalid || !mark ? null : asksFor(mark.confidence);
+    // Only a guess gets the amber input. An empty field the parser never claimed to fill is not a
+    // problem with the field, and colouring it as one makes the form read as forty mistakes.
+    const unsure = asks === 'check';
     const className = `${field.kind === 'text' || !field.kind ? styles.input : styles.textarea} ${
       invalid ? styles.inputInvalid : unsure ? styles.inputUnsure : ''
     }`;
@@ -272,7 +360,8 @@ export function ImportScreen() {
       >
         <label className={styles.label} htmlFor={pathKey}>
           {field.label}
-          {unsure && <span className={styles.flag}>CHECK</span>}
+          {asks === 'check' && <span className={styles.flag}>CHECK</span>}
+          {asks === 'add' && <span className={styles.flagAdd}>ADD</span>}
         </label>
 
         {field.kind === 'long' || field.kind === 'lines' ? (
@@ -311,8 +400,9 @@ export function ImportScreen() {
       <div className={styles.head}>
         <h1 className={styles.title}>Check what was read</h1>
         <p className={styles.lead}>
-          Nothing has been created yet. Extraction is best-effort — the fields marked{' '}
-          <span className={styles.flag}>CHECK</span> are the ones it was least sure of.
+          Nothing has been created yet. Extraction is best-effort:{' '}
+          <span className={styles.flag}>CHECK</span> is a value it guessed and you should read,{' '}
+          <span className={styles.flagAdd}>ADD</span> is one it found nothing for and left to you.
         </p>
       </div>
 
@@ -388,15 +478,33 @@ export function ImportScreen() {
         );
       })}
 
+      {/* Says which field, not "fill in the required fields" — the form is forty inputs long and the
+          two that matter are at the very top, already scrolled past. */}
+      {missing.length > 0 && (
+        <p className={styles.lead} style={{ marginTop: 12, fontSize: 12.5 }}>
+          The CV needs {missing.join(' and ')} before it can be created. Both are in Contact, at the
+          top.
+        </p>
+      )}
+
       <div className={styles.actions}>
-        <button type="button" className="btn" disabled={busy} onClick={() => setProposal(null)}>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          onClick={() => {
+            setProposal(null);
+            setDraft(null);
+            forget();
+          }}
+        >
           Start over
         </button>
         <button
           type="button"
           className="btn btnPrimary"
           style={{ flex: 1 }}
-          disabled={busy}
+          disabled={busy || missing.length > 0}
           onClick={importDraft}
         >
           {busy ? 'Creating…' : 'Create this CV'}
