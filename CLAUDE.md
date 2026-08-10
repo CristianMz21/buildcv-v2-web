@@ -52,7 +52,11 @@ There is a `/smoke` skill that carries the whole e2e runbook, including starting
 sibling `buildcv-v2` checkout and the sign-in rate-limit window.
 
 `BUILDCV_API_ORIGIN` (defaults to `http://localhost:5062` in dev, **required** in production) points at
-the API. `BUILDCV_ALLOW_SELF_SIGNED=1` is the local-only escape hatch for the ASP.NET dev certificate.
+the API. `BUILDCV_ALLOW_SELF_SIGNED=1` is the local-only escape hatch for the ASP.NET dev certificate
+— and it only means anything if the API was started with `--launch-profile https`. A bare
+`dotnet run` takes the first profile in `launchSettings.json`, which is `http` and binds 5062 alone;
+:7160 never comes up, so the flag applies to nothing and the connection is refused. Verified against
+the profiles rather than inferred.
 Both are validated at server start via `src/instrumentation.ts` — **not at module load**, and that
 distinction is load-bearing: `next build` collects page data by importing every route handler with
 `NODE_ENV=production`, so a module-level check made the build itself demand a runtime-only variable
