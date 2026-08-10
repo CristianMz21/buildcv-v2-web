@@ -25,6 +25,7 @@ pnpm test:a11y            # WCAG AA on the signed-out screens — needs NO API, 
 pnpm gen:api              # refetch openapi.json and regenerate src/lib/api-schema.d.ts
 pnpm gen:api:check        # contract drift: needs a live API
 pnpm gen:types:check      # regenerate from the COMMITTED openapi.json — needs nothing, runs in CI
+pnpm contract:coverage    # every operation this BFF calls exists in openapi.json — needs nothing
 pnpm verify:image         # build the container and assert how it behaves — needs docker, runs in CI
 ```
 
@@ -82,6 +83,22 @@ mean **that repo's** CLAUDE.md, not this file.
 
 `openapi.json` is committed so `next build` never needs a running API. `src/lib/api-schema.d.ts` is
 **generated, never edited**.
+
+> **KNOWN DRIFT, and the one launch item this repo cannot close by itself.** The committed contract is
+> behind the API by three operations: `POST /v1/auth/password-reset`, `POST /v1/auth/password-reset/confirm`
+> and `DELETE /v1/auth/me`. All three are served — confirmed in the API's `AuthEndpoints.cs` — and all
+> three are already called by screens that shipped this week. **The app is right and the file is old.**
+>
+> Fixing it is one command against a running API: `pnpm gen:api`. Until that runs,
+> `pnpm contract:coverage` reports exactly those three and exits 1, which is why it is not yet a CI
+> job — wiring it in is the step immediately after the regeneration, and doing it before would only
+> teach the reader that a red check is normal.
+
+`pnpm contract:coverage` exists because nothing else asks this question. `gen:types:check` proves the
+types match the contract; `gen:api:check` proves the contract matches a live API and therefore cannot
+run in CI. Neither asks whether the app calls operations the contract describes — and the answer was
+no for three of them, invisibly, because route handlers relay untyped: the path is a string, the body
+passes through, and `tsc` has no opinion about either.
 
 ## Architecture: a BFF, and every rule follows from that
 
