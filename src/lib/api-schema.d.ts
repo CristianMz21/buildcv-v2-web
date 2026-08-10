@@ -4949,7 +4949,7 @@ export interface paths {
         put?: never;
         /**
          * Scores a resume against a job posting, reusing an identical run rather than repeating it.
-         * @description DE-DUPLICATED. If this resume was already scored against this posting, and neither has been edited since, and the scoring model has not changed, and it was scored TODAY, the stored run is returned instead of a new one — same `id`, same `scoredAt`, and no new entry in `GET /v1/resumes/{id}/analyses`. So a repeated request is not a no-op and not an error: it is the same scoring event. The date is part of that test because a score genuinely moves with time — experience accrues and certificates expire — so tomorrow's identical request does produce a new run. `isStale` on the response is therefore always false here. A section whose `breakdown.weights.<section>` is 0 EXPRESSED NO WEIGHTED REQUIREMENT: it neither helped nor hurt the score, and the `score` beside it measures nothing. Two different postings land there — one that asked nothing of the section, and one that asked and weighted every requirement 0.0. In the second, `recommendations[]` still names those requirements, each with an `impact` of 0, so a section can carry no weight and still carry advice. There is no separate flag for any of this — the weight IS the signal, deliberately, so the two can never disagree. The remaining weights are renormalized to still total 1.0, which is why an `overallScore` of 0 with only three recommendations is a complete answer rather than a truncated one. `weights.languages` IS 0 ON EVERY ANALYSIS this build can produce: no endpoint puts a language requirement on a posting. `weights.skills` is NO LONGER always 0 — `POST /v1/job-offers/import` lets a candidate state skill requirements on their own Draft offer, so an analysis scored against an imported offer carries a nonzero skills weight, while one scored against a `POST /v1/jobs` posting (title, company and description only) still carries 0. Read the weight per analysis rather than assuming either is always 0.
+         * @description DE-DUPLICATED. If this resume was already scored against this posting, and neither has been edited since, and the scoring model has not changed, and it was scored TODAY, the stored run is returned instead of a new one — same `id`, same `scoredAt`, and no new entry in `GET /v1/resumes/{id}/analyses`. So a repeated request is not a no-op and not an error: it is the same scoring event. The date is part of that test because a score genuinely moves with time — experience accrues and certificates expire — so tomorrow's identical request does produce a new run. `isStale` on the response is therefore always false here. `requirementMatches` SAYS WHAT MATCHED, one entry per requirement the posting states, satisfied or not. Do not derive this yourself: the engine canonicalizes through a skill lexicon that is embedded in the server and published nowhere, so `React.js` satisfies a `React` requirement and a client comparing strings would contradict the score printed beside it — precisely whenever the lexicon did its job. `matchedBy[].matchedText` is the candidate's own wording, verbatim, so a UI can show WHY something counted. `matchedBy[].source` is one of `SkillName`, `SkillKeyword` or `ProjectTechnology`, and that list is exhaustive because those are the only three places the matcher looks — WORK HISTORY IS NOT READ when deciding whether a requirement is met, so no response can rank experiences by requirements answered. An unsatisfied requirement carries an empty `matchedBy`, which is the authoritative 'this is missing': recommendations are capped at ten, so a requirement going unmentioned there never meant it matched. THIS FIELD IS NULL ON `GET /v1/scoring/{analysisId}` AND ON THE HISTORY, and null is not an empty array: a stored analysis outlives the resume it scored, so attribution computed at read time would describe today's CV beside an older number. Re-post the same pair to get it — that returns the same de-duplicated analysis with attribution attached. A section whose `breakdown.weights.<section>` is 0 EXPRESSED NO WEIGHTED REQUIREMENT: it neither helped nor hurt the score, and the `score` beside it measures nothing. Two different postings land there — one that asked nothing of the section, and one that asked and weighted every requirement 0.0. In the second, `recommendations[]` still names those requirements, each with an `impact` of 0, so a section can carry no weight and still carry advice. There is no separate flag for any of this — the weight IS the signal, deliberately, so the two can never disagree. The remaining weights are renormalized to still total 1.0, which is why an `overallScore` of 0 with only three recommendations is a complete answer rather than a truncated one. `weights.languages` IS 0 ON EVERY ANALYSIS this build can produce: no endpoint puts a language requirement on a posting. `weights.skills` is NO LONGER always 0 — `POST /v1/job-offers/import` lets a candidate state skill requirements on their own Draft offer, so an analysis scored against an imported offer carries a nonzero skills weight, while one scored against a `POST /v1/jobs` posting (title, company and description only) still carries 0. Read the weight per analysis rather than assuming either is always 0.
          */
         post: {
             parameters: {
@@ -5279,6 +5279,7 @@ export interface components {
             overallScore: number;
             band: string;
             isStale: boolean;
+            requirementMatches?: null | components["schemas"]["RequirementMatchResponse"][];
         };
         AntiforgeryTokenResponse: {
             requestToken: string;
@@ -5711,6 +5712,18 @@ export interface components {
         };
         RenameResumeRequest: {
             name: null | string;
+        };
+        RequirementEvidenceResponse: {
+            source: string;
+            matchedText: string;
+        };
+        RequirementMatchResponse: {
+            skill: string;
+            priority: string;
+            /** Format: double */
+            weight: number;
+            satisfied: boolean;
+            matchedBy: components["schemas"]["RequirementEvidenceResponse"][];
         };
         ResponsibilityResponse: {
             description: string;
