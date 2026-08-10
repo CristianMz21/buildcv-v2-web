@@ -169,7 +169,10 @@ Read it before touching anything score-shaped.
   looks like a small design choice and puts a score label back under the floor.
 - **Never re-implement a server rule.** No client-side skill matcher, no band arithmetic. The scoring
   engine recognises alternative spellings (`React.js` satisfies `React`), so a local comparison would
-  contradict the score next to it — see `missingSkills`, which reads the server's own recommendations.
+  contradict the score next to it — see `requirementAnswers` in `src/lib/format.ts`, which reads the
+  server's own `requirementMatches` and returns a third state, `null`, for a requirement the server
+  said nothing about. That distinction is the point: "not found" and "not answered by this response"
+  look identical to a client that guesses, and only one of them is safe to show a candidate.
 - **Entry `id`s are opaque.** Never address an entry by array position; the store returns collections
   as sets. Only `ResumeResponse` (the full CV) carries ids — `ResumeSummaryResponse` (list rows) carries
   counts and contact basics, nothing more.
