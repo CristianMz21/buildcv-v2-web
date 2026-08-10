@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { headers as requestHeaders } from 'next/headers';
+
 import type { ProblemDetails, TokenResponse } from './contracts';
 import { readSession, secondsUntilExpiry, writeSession, type Session } from './session';
 
@@ -172,6 +174,53 @@ export class ApiTimeoutError extends ApiUnreachableError {
  * to find it. The API honours an inbound id rather than minting its own, so sending one makes the two
  * logs describe the same request in the same word.
  */
+/**
+ * The address of whoever is actually using the product, for the API to rate-limit on.
+ *
+ * WITHOUT THIS THE WHOLE DEPLOYMENT IS ONE CLIENT. The API partitions every limiter on
+ * `Connection.RemoteIpAddress`, and in a BFF that address is this container for every request anyone
+ * makes. Measured through a proxy by the API session: seven sign-ins from seven different addresses
+ * answered `400 400 400 400 429 429 429`. Five failed sign-ins by anybody — a bot, a typo, one
+ * confused person — and nobody else can sign in, register, refresh a token or ask for a password
+ * reset for a minute. The global limiter is worse and quieter: 100 requests a minute for EVERYONE,
+ * across every endpoint, which a dozen people browsing will reach without doing anything unusual.
+ *
+ * THE LAST HOP, NOT THE FIRST. A proxy appends the peer it saw, so the final entry is the one the
+ * trusted proxy observed and the only one a caller cannot choose. Reading the first would let anyone
+ * set `X-Forwarded-For` and mint a fresh rate-limit bucket per request — strictly worse than the
+ * shared bucket this fixes, because today's problem is at least visible.
+ *
+ * OFF UNLESS `BUILDCV_TRUST_PROXY=1`, and the reason is measured rather than assumed. **Next passes a
+ * client-supplied `X-Forwarded-For` through unchanged — it does not append the socket address.** Sent
+ * `1.2.3.4, 203.0.113.9` from curl and the header arrived exactly so, with no `::1` added; sent none
+ * and Next synthesised the real peer instead. So with no proxy overwriting the header on ingress, a
+ * caller can name any address it likes and this would forward it, minting a fresh bucket per request.
+ * A wrong `true` is a silent hole; a wrong `false` is the behaviour we already have.
+ *
+ * The API needs its half too — `Network:ForwardedHeaders` naming this container in `KnownProxies` —
+ * and each half is inert alone. Verified on that side by sending a spoofed header through the proxy
+ * and watching the API record this container's address anyway.
+ */
+async function clientAddress(): Promise<string | null> {
+  if (process.env.BUILDCV_TRUST_PROXY !== '1') return null;
+
+  try {
+    const forwarded = (await requestHeaders()).get('x-forwarded-for');
+    if (!forwarded) return null;
+
+    const hops = forwarded
+      .split(',')
+      .map((hop) => hop.trim())
+      .filter(Boolean);
+
+    return hops.at(-1) ?? null;
+  } catch {
+    // `headers()` throws outside a request scope. Nothing here calls the API from one, but a caller
+    // that did should lose the address rather than the request.
+    return null;
+  }
+}
+
 async function reach(url: string, init: RequestInit): Promise<Response> {
   // The GLOBAL Web Crypto, not `node:crypto`. Importing `randomUUID` from `node:crypto` builds and
   // ships fine — `pnpm build`, the container and every header check passed with it — and then breaks
@@ -183,6 +232,11 @@ async function reach(url: string, init: RequestInit): Promise<Response> {
   // the callers, and a plain object spread would drop a `Headers` instance silently.
   const headers = new Headers(init.headers);
   headers.set('X-Correlation-ID', correlationId);
+
+  // One address, not the chain. The API's ForwardedHeaders middleware takes the rightmost entry and
+  // pops known proxies; handing it exactly the client it should charge leaves nothing to get wrong.
+  const client = await clientAddress();
+  if (client) headers.set('X-Forwarded-For', client);
 
   try {
     return await fetch(url, { ...init, headers, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
