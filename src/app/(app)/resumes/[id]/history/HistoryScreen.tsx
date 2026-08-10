@@ -7,10 +7,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Info } from '@/components/icons';
 import type { AnalysisResponse, JobPostingResponse, PagedResponse } from '@/lib/contracts';
 import { bandTone, plural } from '@/lib/format';
+import { messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import styles from './history.module.css';
-
-class SessionExpired extends Error {}
 
 /** One posting's runs, oldest first — the order the API pages them in and the order they happened. */
 interface Group {
@@ -23,6 +22,7 @@ export function HistoryScreen({ resumeId }: { resumeId: string }) {
   const router = useRouter();
   const [groups, setGroups] = useState<Group[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const onExpired = useCallback(() => router.replace('/login'), [router]);
 
@@ -39,10 +39,11 @@ export function HistoryScreen({ resumeId }: { resumeId: string }) {
         if (cursor) query.set('cursor', cursor);
 
         const response: Response = await fetch(`/api/resumes/${resumeId}/analyses?${query}`);
-        if (response.status === 401) throw new SessionExpired();
-        if (!response.ok) throw new Error(`Could not load the history (${response.status}).`);
+        // A CV that is gone has no history to fail at loading. Reporting it as a load failure sends
+        // the candidate back to a link that will never work again.
+        if (response.status === 404) return setNotFound(true);
 
-        const page = (await response.json()) as PagedResponse<AnalysisResponse>;
+        const page = await readJson<PagedResponse<AnalysisResponse>>(response);
         runs.push(...page.items);
         cursor = page.nextCursor;
       } while (cursor && ++guard < 20);
@@ -86,13 +87,29 @@ export function HistoryScreen({ resumeId }: { resumeId: string }) {
       setGroups(resolved);
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'Could not load the history.');
+      setError(messageOf(caught, 'Could not load the history.'));
     }
   }, [resumeId, onExpired]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The same sentence the editor and the readability screen use, because it is the same fact: three
+  // screens describing one missing CV should not each invent their own wording for it.
+  if (notFound) {
+    return (
+      <div className="card" style={{ padding: 28 }}>
+        <h1 className={styles.title}>No such CV</h1>
+        <p className={styles.subtitle}>
+          It may have been deleted, or it belongs to another account.
+        </p>
+        <Link href="/resumes" className="btn">
+          <ArrowLeft size={13} /> Back to your CVs
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div>
