@@ -27,6 +27,46 @@
   margin-bottom: 16px;
 }
 
+/*
+ * What was done to the CV, and what it does not cover. Screen only — see the `@media print` block.
+ */
+.brief {
+  max-width: 190mm;
+  margin: 0 auto 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--border-soft);
+}
+
+.briefLead {
+  margin: 0;
+  font: 400 13px/1.55 var(--font);
+  color: var(--fg);
+}
+
+.briefNote {
+  margin: 8px 0 0;
+  font: 400 12.5px/1.55 var(--font);
+  color: var(--fg-muted);
+}
+
+.gaps {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font: 400 12.5px/1.7 var(--font);
+  color: var(--fg-muted);
+}
+
+.mustHave {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 5px;
+  font: 600 10.5px var(--font);
+  color: var(--bad);
+  background: var(--bad-bg);
+}
+
 .document {
   background: #fff;
   color: #111827;
@@ -117,6 +157,12 @@
 @media print {
   /* The action that produced this page is not part of the document it produced. */
   .chrome {
+    display: none;
+  }
+
+  /* Nor is the note about what the CV does not cover. That is advice to the candidate, and a CV
+     that argued against its own author would be a strange thing to hand anybody. */
+  .brief {
     display: none;
   }
 
