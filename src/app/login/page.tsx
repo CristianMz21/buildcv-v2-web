@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -5,6 +6,10 @@ import { readSession } from '@/lib/session';
 
 import { LoginForm } from './LoginForm';
 import styles from './login.module.css';
+
+// The first page an anonymous visitor sees, and the only one that was still falling back to the
+// root layout's bare "BuildCv" — so a tab restored a week later said nothing about what it held.
+export const metadata: Metadata = { title: 'Sign in · BuildCv' };
 
 export default async function LoginPage() {
   if (await readSession()) redirect('/resumes');
