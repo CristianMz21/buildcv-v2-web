@@ -216,11 +216,16 @@ running it, or decide knowingly to keep them.
   opens a browser at all.
 - **Dependency advisories are answered, not carried.** `pnpm audit --prod` runs in CI and blocks, plus
   once a week on a schedule — advisories are published against code that has not changed, so a repo
-  with no pull requests that week would otherwise learn nothing. Three transitive packages sit under
-  `overrides:` in **`pnpm-workspace.yaml`** — they arrive under `next` and `eslint`, whose pinned
-  ranges still resolve to vulnerable versions, and an override is the only lever a
-  consumer has. Revisit them on every Next upgrade: once upstream moves past them they become dead
-  pins nobody is watching.
+  with no pull requests that week would otherwise learn nothing. Two transitive packages sit under
+  `overrides:` in **`pnpm-workspace.yaml`** — they arrive under `next`, whose pinned ranges still
+  resolve to vulnerable versions, and an override is the only lever a consumer has. Revisit them on
+  every Next upgrade: once upstream moves past them they become dead pins nobody is watching.
+
+  **`--prod`, not the full audit, and that is the honest scope.** A third override was tried, for a
+  dev-only `js-yaml` advisory, and it broke `pnpm gen:types` outright — 4.3.1 removes the `types.merge`
+  that `@redocly/openapi-core` reads at module load, so the generated contract could no longer be
+  regenerated. The refusal is written next to the entry it would have been. Raising a dev advisory is
+  not free, and a clean full audit is not worth a tool that no longer runs.
 
   Two traps here, both measured. With a workspace file present, `pnpm.overrides` in **package.json is
   inert** — pnpm 11 reads this file instead, and says nothing about the field it ignored. And a plain
