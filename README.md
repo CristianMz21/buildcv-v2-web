@@ -46,8 +46,14 @@ store:
 ASPNETCORE_ENVIRONMENT=Development \
 Persistence__Provider=InMemory \
 Jwt__SigningKey='local-dev-signing-key-that-is-long-enough-32' \
-dotnet run --project src/BuildCv.Api        # listens on :5062
+dotnet run --project src/BuildCv.Api        # listens on :5062, http only
 ```
+
+That is the `http` launch profile — the first in `launchSettings.json`, and therefore the one a bare
+`dotnet run` picks. **It binds 5062 and nothing else.** If you need https locally (to exercise a
+`Secure` cookie, say), add `--launch-profile https`, which binds :7160 as well; only then does
+`BUILDCV_ALLOW_SELF_SIGNED=1` have a certificate to forgive. Pointing at :7160 without it is a
+refused connection, not a certificate error, and the flag will look broken when it was never reached.
 
 ## The contract, across two repositories
 
