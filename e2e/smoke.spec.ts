@@ -197,6 +197,56 @@ test('a candidate can register, import a CV, edit it and read its scores', async
     await expect(options.nth(1)).toHaveAttribute('aria-checked', 'true');
   });
 
+  await test.step('the CV can be taken away as a document', async () => {
+    await page.goto('/resumes');
+    await page.getByRole('link', { name: 'Backend roles' }).click();
+    await page.getByRole('link', { name: 'Print or save as PDF' }).click();
+
+    await expect(page).toHaveURL(/\/print$/);
+    // The document, not the editor's preview: that one clips at one sheet and shows four of the ten
+    // sections, so a candidate printing it would hand an employer a truncated CV.
+    await expect(page.locator('article').getByText('Grace Hopper')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save as PDF' })).toBeVisible();
+  });
+
+  await test.step('a CV built for a posting leads with what answered it', async () => {
+    await page.goto('/analysis');
+
+    // The imported CV, by name rather than by position — the picker lists whatever the API returns
+    // and a CV list is not a sequence.
+    await page.getByRole('radio', { name: /Backend roles/ }).click();
+    await page.getByLabel('2. Paste the job description').fill(
+      'Platform engineer. You will run our services on SQL Server in production, and Kubernetes ' +
+        'experience is strongly preferred for this role.',
+    );
+    await page.getByRole('button', { name: /Extract requirements/i }).click();
+
+    await page.getByLabel(/Job title/i).fill('Platform Engineer');
+    await page.getByLabel(/Company/i).fill('Remington Rand');
+    await page.getByRole('button', { name: 'Run analysis' }).click();
+    await expect(page.getByText('Scoring model')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Build a CV for this job' }).click();
+    await expect(page).toHaveURL(/\/print\?posting=/);
+
+    // FIRST, not "moved up from position three". Resume collections come back as sets, so where a
+    // skill started is not a fact this suite can assert — that it now leads is, and it is the whole
+    // promise of the screen.
+    const skills = page.locator('article').getByText(/SQL Server/);
+    await expect(skills).toBeVisible();
+    await expect(skills).toHaveText(/^SQL Server\b/);
+
+    // The gap is named to the candidate…
+    await expect(page.getByText(/counts them as gaps/)).toBeVisible();
+    await expect(page.getByText('Kubernetes', { exact: false }).first()).toBeVisible();
+
+    // …and never reaches the page an employer receives. A CV that argued against its own author
+    // would be a strange thing to hand anybody, and `@media print` is what keeps it off the paper.
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByText(/counts them as gaps/)).toBeHidden();
+    await page.emulateMedia({ media: null });
+  });
+
   expect(errors, 'the walkthrough must produce no console errors').toEqual([]);
 });
 
