@@ -29,6 +29,14 @@ a CSP without `'unsafe-eval'` survive into the image. It also pins the liveness 
 container at an origin that does not resolve — `/api/health` must still answer 200, because a probe
 that needed the API would restart the whole fleet the moment the API hiccuped.
 
+It also waits for the container's own `HEALTHCHECK` to report **healthy**, which is a different claim
+from "answers the probe". The image spent its whole life permanently unhealthy while serving every
+request correctly: its healthcheck ran *inside*, where `localhost` resolves to `::1` alone, and the
+Node server is bound to IPv4. Every check that probes from the host through the published port passes
+straight through that. `HOSTNAME` stays `0.0.0.0` — binding `::` would be dual-stack on a default
+kernel and would fail to start at all where IPv6 is off, which is worse and untestable here — so the
+`HEALTHCHECK` uses `127.0.0.1` and says why beside itself.
+
 With no argument it **always rebuilds**; pass a tag to verify a pre-existing image instead. That is
 not a convenience — the first version reused an existing tag, and its first run reported HSTS missing
 from an image that predated the commit adding it by twenty-one minutes.
@@ -206,11 +214,18 @@ running it, or decide knowingly to keep them.
   nothing. What the last two have in common is that they need no API and no credentials — `image` is
   the only job that can fail on a property of the thing that ships, and `a11y` is the only one that
   opens a browser at all.
-- **Dependency advisories are answered, not carried.** `pnpm audit --prod` must report clean. Two
-  transitive packages sit under `overrides:` in **`pnpm-workspace.yaml`** — they arrive under `next`,
-  which pins ranges that still resolve to vulnerable versions, and an override is the only lever a
-  consumer has. Revisit them on every Next upgrade: once upstream moves past them they become dead
-  pins nobody is watching.
+- **Dependency advisories are answered, not carried.** `pnpm audit --prod` runs in CI and blocks, plus
+  once a week on a schedule — advisories are published against code that has not changed, so a repo
+  with no pull requests that week would otherwise learn nothing. Two transitive packages sit under
+  `overrides:` in **`pnpm-workspace.yaml`** — they arrive under `next`, whose pinned ranges still
+  resolve to vulnerable versions, and an override is the only lever a consumer has. Revisit them on
+  every Next upgrade: once upstream moves past them they become dead pins nobody is watching.
+
+  **`--prod`, not the full audit, and that is the honest scope.** A third override was tried, for a
+  dev-only `js-yaml` advisory, and it broke `pnpm gen:types` outright — 4.3.1 removes the `types.merge`
+  that `@redocly/openapi-core` reads at module load, so the generated contract could no longer be
+  regenerated. The refusal is written next to the entry it would have been. Raising a dev advisory is
+  not free, and a clean full audit is not worth a tool that no longer runs.
 
   Two traps here, both measured. With a workspace file present, `pnpm.overrides` in **package.json is
   inert** — pnpm 11 reads this file instead, and says nothing about the field it ignored. And a plain

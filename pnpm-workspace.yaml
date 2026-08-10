@@ -26,3 +26,15 @@ overrides:
   # Inherited libvips CVEs. Unreachable in this app twice over: no <Image> is rendered, and the native
   # binding is never built (see allowBuilds above). Raised anyway so an audit reports what it means.
   sharp: '>=0.35.0'
+# js-yaml is deliberately NOT overridden, and this is the note that stops someone adding it back.
+#
+# It carries a high advisory — quadratic CPU parsing `!!omap` — patched in 4.3.1, and raising it looks
+# free because nothing a user touches goes near it. It is not free: 4.3.1 removes `types.merge`, which
+# `@redocly/openapi-core` reads at module load, so `pnpm gen:types` dies on `Cannot read properties of
+# undefined` and the generated contract can no longer be regenerated at all. Measured in CI, on the
+# commit that tried it.
+#
+# The advisory is a CPU-exhaustion bound reached only through eslint's config loader parsing this
+# project's own files, so the exposure is a slow lint on input we wrote. `pnpm audit --prod` — the one
+# CI blocks on, and the one that describes what ships — is clean without it. Revisit when
+# openapi-typescript's dependency moves.
