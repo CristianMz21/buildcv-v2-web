@@ -42,8 +42,15 @@ lets the ring and the label disagree about one score.
 
 **A server rule re-implemented on the client.** No skill matcher, no band arithmetic, no recomputing
 what a response already states. The scoring engine recognises alternative spellings — `React.js`
-satisfies `React` — so a local comparison contradicts the score beside it. `missingSkills` reads the
-server's own recommendations for exactly this reason.
+satisfies `React` — so a local comparison contradicts the score beside it. `requirementAnswers` in
+`src/lib/format.ts` is the shape to follow: it reads the server's `requirementMatches` and answers
+`null` — a third state — for a requirement the response said nothing about.
+
+That third state is the part to enforce. Flag any code that collapses it: **"the server did not say"
+is not "the candidate does not have it"**, and a screen that renders the two the same way tells a
+candidate they are missing a skill nobody measured. The predecessor here searched a recommendation's
+prose for the skill name and was removed for exactly that reason — if a diff reintroduces a string
+search over `message` or `detail` to decide what a CV is missing, that is this rule being broken.
 
 **An entry addressed by array position.** Entry `id`s are opaque: unique within one CV, not dense,
 not ordered, not reused. The store returns collections as sets, so an index can name a different
