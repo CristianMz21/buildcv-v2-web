@@ -9,3 +9,15 @@ node_modules
 .playwright-mcp
 test-results
 playwright-report
+
+# Nothing below is read by `next build`, and every one of them would otherwise be copied into the
+# build context and then into a layer. Kept out for a reason stronger than size: the smaller the
+# context, the fewer files a future COPY can pick up by accident. `.claude/settings.json` in
+# particular describes which edits this repo denies — a fact about the workspace, not the product.
+e2e
+playwright.config.ts
+scripts
+.claude
+.agents
+.github
+.atl
