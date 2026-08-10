@@ -7,6 +7,18 @@ next-env.d.ts
 .env.local
 .env.*.local
 
+# Rival lockfiles. pnpm is pinned by `packageManager` so corepack resolves the version the Dockerfile
+# builds with, and pnpm-lock.yaml is the only tree that is ever installed — CI uses --frozen-lockfile
+# and the image builds from it.
+#
+# `.claude/settings.json` also denies `npm install`, and that rule protects EXACTLY ONE PARTICIPANT:
+# the assistant reading it. A person who types the command sees nothing, and a lockfile that lands is
+# committable, believed, and quietly describes a tree nothing installs. The deny is a convenience;
+# this is the part that holds regardless of who ran what.
+package-lock.json
+yarn.lock
+bun.lockb
+
 test-results/
 playwright-report/
 # Where the Playwright MCP browser writes snapshots, screenshots and any file it is handed. Tool
