@@ -99,6 +99,62 @@ export function AnalysisFlow() {
     };
   }, [onExpired]);
 
+  /**
+   * A FINISHED ANALYSIS SURVIVES A REFRESH, because the server already had it.
+   *
+   * Every step of this flow lived in React state, so reloading on the results screen threw away a run
+   * the API had stored and walked the candidate back to step one to paste the posting again. The work
+   * was never lost — only the way back to it was, and the analysis had been carrying its own id the
+   * whole time in a field this screen ignored.
+   *
+   * The posting is fetched rather than remembered: an analysis names the posting it scored against by
+   * id and says nothing else about it, and the results screen shows its title, company and
+   * requirements.
+   */
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('analysis');
+    if (!id) return;
+
+    let cancelled = false;
+
+    (async () => {
+      setBusy(true);
+
+      try {
+        const scored = await readJson<AnalysisResponse>(await fetch(`/api/scoring/${id}`));
+        if (cancelled) return;
+
+        const against = await readJson<JobPostingResponse>(
+          await fetch(`/api/jobs/${scored.jobPostingId}`),
+        );
+        if (cancelled) return;
+
+        setAnalysis(scored);
+        setPosting(against);
+        // Unconditional, because the CV list loads in parallel and defaults to the first one. The
+        // analysis knows which CV it scored; a default would label these results with another.
+        setSelectedResumeId(scored.resumeId);
+        setTitle(against.title);
+        setCompanyName(against.companyName ?? '');
+        setCounted(new Set());
+        setPhase('results');
+      } catch (caught) {
+        if (cancelled) return;
+        if (caught instanceof SessionExpired) return onExpired();
+
+        // A link to an analysis that was deleted, or never belonged to this account, is not worth a
+        // banner on a screen that works perfectly without one. Drop the query and start clean.
+        window.history.replaceState(null, '', '/analysis');
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onExpired]);
+
   async function extract() {
     setBusy(true);
     setError(null);
@@ -180,6 +236,10 @@ export function AnalysisFlow() {
       setAnalysis(scored);
       setCounted(new Set());
       setPhase('results');
+      // Naming the run in the URL is the whole of the resumability. `replaceState` rather than a
+      // router push: this is not a new page, and it must not leave a history entry the back button
+      // has to walk back through.
+      window.history.replaceState(null, '', `/analysis?analysis=${scored.id}`);
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
       setFieldErrors(fieldErrorsOf(caught));
@@ -196,6 +256,8 @@ export function AnalysisFlow() {
     setPhase('inputs');
     // Cleared with the posting it describes, so a new run cannot reuse one the user has left behind.
     postedBody.current = null;
+    // And the id goes with it, or a refresh would restore the run the candidate just walked away from.
+    window.history.replaceState(null, '', '/analysis');
     setPosting(null);
     setAnalysis(null);
     setRequirements([]);
