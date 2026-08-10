@@ -102,6 +102,13 @@ The consequences that constrain new code:
   Measured, and reproducible in two commands: run a TCP server that accepts and never writes, point
   `BUILDCV_API_ORIGIN` at it, and `POST /api/auth/login` answers **504 in 20.0s** with a
   ProblemDetails body. Against a closed port it is still **503 in 0.4s**.
+
+  **That 20s couples to the deployment.** The shutdown grace period has to outlast the longest request
+  the app will wait on, and Docker's default 10s does not: measured, a request still running at the
+  deadline is SIGKILLed (exit 137) and its caller gets a severed connection with no status. The server
+  itself drains correctly — one that finishes inside the window gets a complete response and exit 0.
+  Raising `API_TIMEOUT_MS` means raising the grace period too; the README's deployment section carries
+  both measurements and the settings that fix it.
 - **Route handlers are thin**: validate what came off the URL, then `withSession(async () =>
   relay(await apiPost(...)))`. `relay` passes status, body and `content-type` through unchanged so the
   API's ProblemDetails — including the `errors` map keyed by field path — reaches the form that needs
