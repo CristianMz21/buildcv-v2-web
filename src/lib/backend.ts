@@ -93,6 +93,31 @@ export class NoSessionError extends Error {
   }
 }
 
+/**
+ * The call never reached BuildCv.Api at all — no status, no body, no answer.
+ *
+ * IT IS A DIFFERENT FAILURE FROM ANY THE API CAN RETURN, and until it had a name it did not look
+ * like one. `fetch` rejects with a bare TypeError, the route handler let it escape, Next answered a
+ * generic 500, and the sign-in form fell through to "Sign-in failed." — the exact sentence a wrong
+ * password produces. Every outage read to the candidate as their own typo, and to us as a support
+ * queue we could not tell apart.
+ */
+export class ApiUnreachableError extends Error {
+  constructor(cause: unknown) {
+    super('BuildCv.Api could not be reached.', { cause });
+    this.name = 'ApiUnreachableError';
+  }
+}
+
+/** `fetch`, with a transport failure named rather than left as a bare TypeError. */
+async function reach(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (cause) {
+    throw new ApiUnreachableError(cause);
+  }
+}
+
 function apiUrl(path: string): string {
   if (!path.startsWith('/')) throw new Error(`API path must be absolute: ${path}`);
   return `${apiOrigin()}/v1${path}`;
@@ -146,7 +171,7 @@ export type LoginOutcome =
  * halves have to be collected from different places.
  */
 export async function login(email: string, password: string): Promise<LoginOutcome> {
-  const response = await fetch(apiUrl('/auth/login'), {
+  const response = await reach(apiUrl('/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -192,7 +217,7 @@ export async function login(email: string, password: string): Promise<LoginOutco
  * a stranger.
  */
 export async function register(email: string, password: string): Promise<Response> {
-  return fetch(apiUrl('/auth/register'), {
+  return reach(apiUrl('/auth/register'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -207,7 +232,7 @@ export async function register(email: string, password: string): Promise<Respons
  * store what comes back would strand the session at the next expiry.
  */
 async function refresh(session: Session): Promise<Session | null> {
-  const response = await fetch(apiUrl('/auth/refresh'), {
+  const response = await reach(apiUrl('/auth/refresh'), {
     method: 'POST',
     // Sent as a header rather than through a cookie jar: this is a server-to-server call with no
     // browser in it, and the API reads the value straight off Request.Cookies.
@@ -246,7 +271,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   }
 
   const send = (bearer: string) =>
-    fetch(apiUrl(path), {
+    reach(apiUrl(path), {
       ...init,
       headers: { ...init.headers, Authorization: `Bearer ${bearer}` },
       cache: 'no-store',

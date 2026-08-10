@@ -2,8 +2,30 @@ import 'server-only';
 
 import { NextResponse } from 'next/server';
 
-import { NoSessionError } from './backend';
+import { ApiUnreachableError, NoSessionError } from './backend';
 import { clearSession } from './session';
+
+/**
+ * The answer for a call that never reached the API.
+ *
+ * 503 AND NOT 500, because the two say different things to everyone who reads them: 500 is "this
+ * app is broken", 503 is "the thing behind it is not answering, try again". A load balancer, a
+ * monitor and a candidate all act differently on that.
+ *
+ * The sentence says whose fault it is out loud. Until this existed, an outage and a wrong password
+ * produced the same words on the sign-in screen, so every one of our failures arrived as somebody
+ * doubting their own memory.
+ */
+export function unreachable(): NextResponse {
+  return NextResponse.json(
+    {
+      status: 503,
+      title: 'Service Unavailable',
+      detail: 'BuildCv is not answering right now. This is not something you did — try again shortly.',
+    },
+    { status: 503, headers: { 'content-type': 'application/problem+json' } },
+  );
+}
 
 /**
  * Hands an upstream BuildCv.Api response back to the browser unchanged.
@@ -48,6 +70,10 @@ export async function withSession(handler: () => Promise<NextResponse>): Promise
   try {
     return await handler();
   } catch (error) {
+    // Every authenticated route gets this for free by being wrapped here, which is the point: an
+    // outage should not need twenty route handlers to each remember to describe it.
+    if (error instanceof ApiUnreachableError) return unreachable();
+
     if (error instanceof NoSessionError) {
       // THE COOKIES GO WITH THE 401, and leaving them was an infinite redirect loop rather than an
       // untidiness. The page gates check that a session cookie EXISTS, not that it still works, so a
