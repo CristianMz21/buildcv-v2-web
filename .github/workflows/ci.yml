@@ -123,3 +123,51 @@ jobs:
       # BUILDCV_API_ORIGIN is left at its dev default, which resolves to nothing here. That is the
       # point: if a screen in this list ever starts calling the API, this job fails and says so.
       - run: pnpm test:a11y
+
+  # Publishes the image the other two jobs just vouched for.
+  #
+  # ONLY ON main, and only after `image` passed — so what lands in the registry is an artifact whose
+  # behaviour was asserted, not merely one that compiled. `needs` is the whole point of the job.
+  #
+  # It exists because pushing from a laptop failed in both the ways a laptop fails. A personal token
+  # needed a `write:packages` scope that neither of us had, and `docker login` SUCCEEDS without it —
+  # the push is where the refusal appears, so a green login proves nothing. And the local build itself
+  # broke on corepack timing out against the npm registry, with and without host networking, while CI
+  # built the same commit without noticing. `GITHUB_TOKEN` carries `packages: write` for free and a
+  # runner has a network that works.
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [checks, image]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Lowercased because a registry path must be, and the owner here is not.
+      - id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/buildcv-web" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tagged by commit AND latest, pointing at one build. The commit tag is what a deployment should
+      # name: `latest` in a registry is the trap that once made this repo's own check report HSTS
+      # missing from an image twenty-one minutes older than the commit that added it.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:${{ github.sha }}
+            ${{ steps.name.outputs.image }}:latest
+
+      - run: |
+          echo "Published ${{ steps.name.outputs.image }}:${{ github.sha }}"
+          echo "Deploy that tag, never latest."
