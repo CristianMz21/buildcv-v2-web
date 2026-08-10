@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { login } from '@/lib/backend';
+import { ApiUnreachableError, login } from '@/lib/backend';
+import { unreachable } from '@/lib/relay';
 import { writeSession } from '@/lib/session';
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -13,7 +14,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const outcome = await login(email, password);
+  // Anonymous, so it does not pass through `withSession` and has to name the outage itself. Without
+  // this the fetch rejection escaped as a bare 500 and the form said "Sign-in failed." — which is
+  // what it says for a wrong password.
+  let outcome;
+  try {
+    outcome = await login(email, password);
+  } catch (error) {
+    if (error instanceof ApiUnreachableError) return unreachable();
+    throw error;
+  }
 
   if (!outcome.ok) {
     const headers = new Headers({ 'content-type': 'application/problem+json' });

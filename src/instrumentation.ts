@@ -26,3 +26,44 @@ export async function register() {
   const { initBackend } = await import('./lib/backend');
   initBackend();
 }
+
+/**
+ * Every server-side error, as one line a log aggregator can filter.
+ *
+ * UNTIL THIS EXISTED THERE WAS NO SIGNAL AT ALL. The client boundary in `error.tsx` calls
+ * `console.error` in the browser, where only the person already having the bad time can see it, and
+ * nothing on the server said anything. A deployment could be answering 500 to every sign-in and the
+ * first report would be a candidate emailing to say the site is broken.
+ *
+ * WHAT IS DELIBERATELY NOT HERE is the point of the shape. No headers — they carry `bcv_access` and
+ * `bcv_refresh`, and a log with a session cookie in it is a log that can impersonate the user it
+ * describes. No request body, no response body: those are the candidate's CV. The path, the method
+ * and the route are enough to find the fault and none of them is theirs.
+ *
+ * JSON rather than prose for the same reason the API turned on its own JSON formatter: an aggregator
+ * cannot filter on a field it has to parse out of a sentence. `stdout` is the sink — that is what a
+ * container platform collects, and it is the one place this can go without shipping a candidate's
+ * data to a third party to be helpful.
+ */
+export function onRequestError(
+  error: unknown,
+  request: { path: string; method: string },
+  context: { routerKind: string; routePath: string; routeType: string },
+): void {
+  const fault = error instanceof Error ? error : new Error(String(error));
+
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      at: new Date().toISOString(),
+      name: fault.name,
+      message: fault.message,
+      stack: fault.stack,
+      method: request.method,
+      path: request.path,
+      routePath: context.routePath,
+      routeType: context.routeType,
+      routerKind: context.routerKind,
+    }),
+  );
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { login, register } from '@/lib/backend';
-import { relay } from '@/lib/relay';
+import { ApiUnreachableError, login, register } from '@/lib/backend';
+import { relay, unreachable } from '@/lib/relay';
 import { writeSession } from '@/lib/session';
 
 /**
@@ -25,12 +25,24 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
-  const created = await register(email, password);
-  // Relayed unchanged: the API's refusals here are the useful ones — an address already registered, a
-  // password the hasher rejects — and each is a sentence the form can show as written.
-  if (!created.ok) return relay(created);
+  // Anonymous, so neither call passes through `withSession`. Both are wrapped together because the
+  // candidate cannot act on which of the two failed to reach the API — only on the fact that neither
+  // did, and that it was not their doing.
+  let created: Response;
+  let session: Awaited<ReturnType<typeof login>>;
 
-  const session = await login(email, password);
+  try {
+    created = await register(email, password);
+    // Relayed unchanged: the API's refusals here are the useful ones — an address already registered,
+    // a password the hasher rejects — and each is a sentence the form can show as written.
+    if (!created.ok) return relay(created);
+
+    session = await login(email, password);
+  } catch (error) {
+    if (error instanceof ApiUnreachableError) return unreachable();
+    throw error;
+  }
+
   if (!session.ok) {
     const headers = new Headers({ 'content-type': 'application/problem+json' });
     // Register and login share one 5-per-minute window, so registering spends part of it: this is
