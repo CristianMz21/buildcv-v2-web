@@ -217,10 +217,21 @@ export async function login(email: string, password: string): Promise<LoginOutco
  * a stranger.
  */
 export async function register(email: string, password: string): Promise<Response> {
-  return reach(apiUrl('/auth/register'), {
+  return anonymousPost('/auth/register', { email, password });
+}
+
+/**
+ * A POST with no session, for the routes that exist precisely because there is not one.
+ *
+ * Registering, and recovering a forgotten password. `apiFetch` refuses without a session and is right
+ * to — every other call in this app has one — so these need their own way out rather than an
+ * exception carved into the one that guards the rest.
+ */
+export function anonymousPost(path: string, body: unknown): Promise<Response> {
+  return reach(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(body),
     cache: 'no-store',
   });
 }
