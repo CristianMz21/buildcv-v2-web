@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ArrowLeft, Info, Warning } from '@/components/icons';
 import { ScoreRing } from '@/components/ScoreRing';
-import type { ProblemDetails, ReadabilityResponse } from '@/lib/contracts';
+import type { ReadabilityResponse } from '@/lib/contracts';
 import {
   readabilityBandCopy,
   bandTone,
@@ -17,15 +17,15 @@ import {
   toPercent,
   unmeasuredReason,
 } from '@/lib/format';
+import { messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import styles from './readability.module.css';
-
-class SessionExpired extends Error {}
 
 export function ReadabilityScreen({ resumeId }: { resumeId: string }) {
   const router = useRouter();
   const [report, setReport] = useState<ReadabilityResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [running, setRunning] = useState(false);
 
   const onExpired = useCallback(() => router.replace('/login'), [router]);
@@ -36,17 +36,14 @@ export function ReadabilityScreen({ resumeId }: { resumeId: string }) {
 
     try {
       const response = await fetch(`/api/resumes/${resumeId}/readability`, { method: 'POST' });
-      if (response.status === 401) throw new SessionExpired();
+      // A CV that is gone, or was never this account's, is not a scoring failure. Saying "could not
+      // score this CV (404)" invites the retry that cannot work, which the editor already knew.
+      if (response.status === 404) return setNotFound(true);
 
-      if (!response.ok) {
-        const problem = (await response.json().catch(() => ({}))) as ProblemDetails;
-        throw new Error(problem.detail ?? `Could not score this CV (${response.status}).`);
-      }
-
-      setReport((await response.json()) as ReadabilityResponse);
+      setReport(await readJson<ReadabilityResponse>(response));
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
-      setError(caught instanceof Error ? caught.message : 'Could not score this CV.');
+      setError(messageOf(caught, 'Could not score this CV.'));
     } finally {
       setRunning(false);
     }
@@ -57,6 +54,22 @@ export function ReadabilityScreen({ resumeId }: { resumeId: string }) {
   useEffect(() => {
     void run();
   }, [run]);
+
+  // Said the way the editor says it, because it is the same fact and a candidate who followed a
+  // stale link should not have to work out that two screens are describing one missing CV.
+  if (notFound) {
+    return (
+      <div className={`card ${styles.panel}`}>
+        <h1 className={styles.panelTitle}>No such CV</h1>
+        <p className={styles.panelLead}>
+          It may have been deleted, or it belongs to another account.
+        </p>
+        <Link href="/resumes" className="btn">
+          <ArrowLeft size={13} /> Back to your CVs
+        </Link>
+      </div>
+    );
+  }
 
   const tone = report ? bandTone(report.band) : null;
   const measured = report?.breakdown.sections.filter((section) => section.weight > 0) ?? [];
