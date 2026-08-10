@@ -172,7 +172,7 @@ export function ResultsStep({
 
           <div className={styles.duoGrid}>
             <div className={`card ${styles.panel}`}>
-              <h2 className={styles.panelTitle} style={{ color: 'var(--good)', fontSize: 14 }}>
+              <h2 className={styles.panelTitle} style={{ color: 'var(--good-fg)', fontSize: 14 }}>
                 Strengths
               </h2>
               <p className={styles.panelLead}>Sections that carried weight and scored 80 or above.</p>
@@ -192,7 +192,7 @@ export function ResultsStep({
             </div>
 
             <div className={`card ${styles.panel}`}>
-              <h2 className={styles.panelTitle} style={{ color: 'var(--warn)', fontSize: 14 }}>
+              <h2 className={styles.panelTitle} style={{ color: 'var(--warn-fg)', fontSize: 14 }}>
                 Gaps
               </h2>
               <p className={styles.panelLead}>

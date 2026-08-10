@@ -162,7 +162,7 @@
 
 .flag {
   font: 600 10.5px var(--font);
-  color: var(--warn);
+  color: var(--warn-fg);
   background: var(--warn-bg);
   border-radius: 5px;
   padding: 1px 5px;
@@ -215,7 +215,7 @@
   height: 48px;
   border-radius: 50%;
   background: var(--good-bg);
-  color: var(--good);
+  color: var(--good-fg);
   display: flex;
   align-items: center;
   justify-content: center;

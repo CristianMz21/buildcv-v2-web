@@ -12,11 +12,20 @@ export interface Tone {
   border: string;
 }
 
+/**
+ * Every `fg` is a `-fg` token, never the vivid one that shares its name.
+ *
+ * The vivid tones are FILL colours: `--good` on white is 3.30:1 and `--warn` is 3.19:1, which clears
+ * the 3:1 the WCAG asks of a bar or a dot and misses the 4.5:1 it asks of text. Three of these five
+ * bands failed that way — measured, not guessed — and the darker pair for each already existed in
+ * `globals.css` for exactly this. Restoring the brighter colour here would look like a small design
+ * choice and would quietly put the score label back under the floor.
+ */
 const TONES = {
-  strong: { fg: 'var(--good-strong)', bg: 'var(--good-bg)', border: 'var(--good-border)' },
+  strong: { fg: 'var(--good-fg)', bg: 'var(--good-bg)', border: 'var(--good-border)' },
   good: { fg: 'var(--primary)', bg: 'var(--primary-bg)', border: '#dbeafe' },
-  medium: { fg: 'var(--warn)', bg: 'var(--warn-bg)', border: '#fde68a' },
-  low: { fg: 'var(--bad)', bg: 'var(--bad-bg)', border: 'var(--bad-border)' },
+  medium: { fg: 'var(--warn-fg)', bg: 'var(--warn-bg)', border: '#fde68a' },
+  low: { fg: 'var(--bad-fg)', bg: 'var(--bad-bg)', border: 'var(--bad-border)' },
   neutral: { fg: 'var(--fg-muted)', bg: 'var(--border-soft)', border: 'var(--border)' },
 } as const satisfies Record<string, Tone>;
 

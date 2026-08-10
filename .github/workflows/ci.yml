@@ -70,3 +70,32 @@ jobs:
       # No argument, so it builds from this checkout. Passing a tag would make it verify a
       # pre-existing image, which is what a deploy pipeline wants and what CI must not do.
       - run: ./scripts/verify-image.sh
+
+  # The only browser that opens in CI.
+  #
+  # `test:e2e` cannot run here — it needs a real BuildCv.Api — so until this job existed, `next build`
+  # succeeding was the entire evidence that any page rendered. These six screens are the ones a
+  # visitor sees before they have an account, they call no API, and they are where a defect costs the
+  # most: someone who cannot operate the sign-in form does not get a worse experience, they get none.
+  a11y:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Chromium only. The suite asserts WCAG conformance and computed focus styles, neither of which
+      # differs by engine enough to justify tripling the install.
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # BUILDCV_API_ORIGIN is left at its dev default, which resolves to nothing here. That is the
+      # point: if a screen in this list ever starts calling the API, this job fails and says so.
+      - run: pnpm test:a11y

@@ -223,7 +223,7 @@
   align-items: center;
   gap: 5px;
   font-weight: 500;
-  color: var(--good);
+  color: var(--good-fg);
 }
 
 .footnote {
@@ -322,7 +322,7 @@
   align-items: center;
   gap: 5px;
   font: 500 11.5px var(--font);
-  color: var(--warn);
+  color: var(--warn-fg);
   background: var(--warn-bg);
   border-radius: 6px;
   padding: 2px 7px;
@@ -371,7 +371,7 @@
 
 .stepDone {
   background: var(--good-bg);
-  color: var(--good);
+  color: var(--good-fg);
 }
 
 .spinner {

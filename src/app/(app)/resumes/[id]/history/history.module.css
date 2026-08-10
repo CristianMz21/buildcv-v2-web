@@ -132,7 +132,7 @@
 }
 
 .flagStale {
-  color: var(--warn);
+  color: var(--warn-fg);
   background: var(--warn-bg);
 }
 

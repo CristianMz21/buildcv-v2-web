@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
+    "test:a11y": "playwright test e2e/a11y.spec.ts",
     "verify:image": "./scripts/verify-image.sh",
     "gen:types": "openapi-typescript openapi.json -o src/lib/api-schema.d.ts",
     "gen:types:check": "pnpm gen:types && git diff --exit-code -- src/lib/api-schema.d.ts",
@@ -24,6 +25,7 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/eslintrc": "^3.3.6",
     "@playwright/test": "^1.62.1",
     "@types/node": "22.10.5",

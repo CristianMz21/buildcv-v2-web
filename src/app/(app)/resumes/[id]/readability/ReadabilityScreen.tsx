@@ -203,7 +203,7 @@ export function ReadabilityScreen({ resumeId }: { resumeId: string }) {
                         <div className={styles.adviceHead}>
                           <span
                             className={styles.tag}
-                            style={{ color: 'var(--good)', background: 'var(--good-bg)' }}
+                            style={{ color: 'var(--good-fg)', background: 'var(--good-bg)' }}
                           >
                             {impactPoints(recommendation.impact)}
                           </span>
