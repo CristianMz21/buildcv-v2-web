@@ -8,6 +8,12 @@ Package manager is **pnpm**, pinned by the `packageManager` field so corepack re
 version the Dockerfile builds with. `npm install` is denied in `.claude/settings.json` — it would
 write a `package-lock.json` and resolve a tree the container never builds.
 
+That deny protects **exactly one participant**: an assistant reading the settings file. A person who
+types the command sees nothing, so `package-lock.json`, `yarn.lock` and `bun.lockb` are in
+`.gitignore` — that is the half that holds regardless of who ran what. Verified by probe, not by
+reading: an `Edit` on `src/lib/api-schema.d.ts` is genuinely refused, and the three lockfiles are
+genuinely ignored.
+
 ```bash
 pnpm install
 pnpm dev                  # http://localhost:3000
