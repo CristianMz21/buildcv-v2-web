@@ -190,6 +190,33 @@
   padding: 32px;
 }
 
+/*
+ * NOTHING OF THE APPLICATION PRINTS — only what the page itself put on paper.
+ *
+ * The print route lives inside this group on purpose, because that is where the session gate is and
+ * a CV is not a document to serve without one. The cost is that the shell would otherwise print with
+ * it: a sidebar down the left of every page and a 32px frame around the document.
+ *
+ * Stated here rather than in the print stylesheet because these are this file's class names, and a
+ * CSS module cannot reach another module's.
+ */
+@media print {
+  .sidebar {
+    display: none;
+  }
+
+  .shell,
+  .main {
+    display: block;
+  }
+
+  .content {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+
 @media (max-width: 860px) {
   .content {
     padding: 20px 16px;

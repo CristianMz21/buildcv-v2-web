@@ -5,9 +5,13 @@ import styles from './editor.module.css';
 /**
  * The CV as one page.
  *
- * IT IS NOT AN EXPORT AND MUST NOT LOOK LIKE ONE. There is no PDF endpoint anywhere in this product,
- * so this is a reading of what the CV currently holds, at a page's proportions — no download button
- * beside it, and nothing here claims to be the file an employer would receive.
+ * IT IS STILL NOT THE EXPORT. `print/PrintScreen.tsx` is, and the two are different documents on
+ * purpose: this one clips at a single sheet (`overflow: hidden`) and shows four of the ten sections,
+ * because it is a reading of what the CV currently holds at a page's proportions. Printing it would
+ * hand an employer a truncated CV.
+ *
+ * What changed is only that the claim "nothing here can produce a file" is no longer true — the
+ * export lives one route away, reached from the editor's header rather than from beside this.
  *
  * It shows only the sections that have something in them. An empty CV rendered as a page of headings
  * would read as a template to fill rather than as the state of the data.
