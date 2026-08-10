@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 
 /**
@@ -14,7 +15,7 @@ import { relay, withSession } from '@/lib/relay';
  */
 export async function POST(request: Request): Promise<NextResponse> {
   return withSession(async () => {
-    const { text } = (await request.json()) as { text?: string };
+    const { text } = (await readJsonBody(request)) as { text?: string };
     return relay(await apiPost('/job-offers/extract', { text }));
   });
 }

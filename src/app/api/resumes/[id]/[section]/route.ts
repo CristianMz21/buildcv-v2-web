@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 import { isResumeSection } from '@/lib/sections';
 
@@ -24,6 +25,6 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
   }
 
   return withSession(async () =>
-    relay(await apiPost(`/resumes/${id}/${section}`, await request.json())),
+    relay(await apiPost(`/resumes/${id}/${section}`, await readJsonBody(request))),
   );
 }

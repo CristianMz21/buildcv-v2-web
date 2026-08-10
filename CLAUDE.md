@@ -123,6 +123,18 @@ The consequences that constrain new code:
   API and the browser would both hold an id the server between them never mentioned.
 - **Path segments that reach the API path must be gated against a closed list** (`isResumeSection` in
   `src/lib/sections.ts`). Without it the BFF is an open proxy for any future `/v1/resumes/{id}/…` route.
+- **Never call `request.json()`. Use `readJsonBody` from `src/lib/body.ts`.** App Router handlers do
+  not inherit the 1 MB cap Pages API routes had, so `request.json()` buffers whatever it is sent
+  before a single handler line runs. Measured against the image: one **121 MB** POST to
+  `/api/auth/login` — unauthenticated, no session needed — took the container from 56 MiB to 305 MiB.
+  Now 413 in 11ms, and 62 MiB after two of them. The `Content-Length` check is the cheap half; the
+  stream is counted as it arrives because a sender can use chunked encoding and declare no length —
+  tested, and also 413. The anonymous routes pass `MAX_CREDENTIAL_BYTES` instead of the default,
+  because they read two short strings and are the ones reachable without an account.
+
+  `/api/resumes/import/propose` is the exception and was already right: it **streams** the multipart
+  body straight through, so the API refuses an over-size file while reading it. Do not "simplify" that
+  into a `formData()` call — that would buffer the upload this rule exists to prevent.
 
 Screens are `'use client'` components that `fetch('/api/…')` and go through `readJson` / `failureOf`
 in `src/lib/http.ts`. `SessionExpired` (401) means redirect to `/login`, never a banner.

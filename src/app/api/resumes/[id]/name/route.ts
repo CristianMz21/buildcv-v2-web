@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { apiFetch } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,7 +21,7 @@ export async function PUT(request: Request, { params }: Params): Promise<NextRes
       await apiFetch(`/resumes/${id}/name`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(await request.json()),
+        body: JSON.stringify(await readJsonBody(request)),
       }),
     ),
   );

@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 import { clearSession } from '@/lib/session';
 
@@ -17,7 +18,7 @@ import { clearSession } from '@/lib/session';
  */
 export async function POST(request: Request): Promise<NextResponse> {
   return withSession(async () => {
-    const body = await request.json();
+    const body = await readJsonBody(request);
     const upstream = await apiPost('/auth/change-password', body);
 
     if (upstream.ok) await clearSession();

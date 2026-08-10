@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 
 /**
@@ -14,5 +15,5 @@ import { relay, withSession } from '@/lib/relay';
  * failure to the binding boundary and lose the path.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  return withSession(async () => relay(await apiPost('/job-offers/import', await request.json())));
+  return withSession(async () => relay(await apiPost('/job-offers/import', await readJsonBody(request))));
 }

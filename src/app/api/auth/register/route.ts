@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { ApiUnreachableError, login, register } from '@/lib/backend';
-import { relay, unreachable } from '@/lib/relay';
+import { MAX_CREDENTIAL_BYTES, PayloadTooLargeError, readJsonBody } from '@/lib/body';
+import { relay, tooLarge, unreachable } from '@/lib/relay';
 import { writeSession } from '@/lib/session';
 
 /**
@@ -16,7 +17,17 @@ import { writeSession } from '@/lib/session';
  * create it again and meet "email already registered" — an error about their own successful action.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const { email, password } = (await request.json()) as { email?: string; password?: string };
+  // Anonymous, so the body is bounded here rather than by `withSession`. See the note in the sign-in
+  // route: these are the endpoints reachable without an account.
+  let credentials: { email?: string; password?: string };
+  try {
+    credentials = await readJsonBody(request, MAX_CREDENTIAL_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) return tooLarge();
+    throw error;
+  }
+
+  const { email, password } = credentials;
 
   if (!email || !password) {
     return NextResponse.json(

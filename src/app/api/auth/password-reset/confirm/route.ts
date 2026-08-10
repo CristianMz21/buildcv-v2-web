@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { anonymousPost, ApiUnreachableError } from '@/lib/backend';
-import { relay, unreachable } from '@/lib/relay';
+import { MAX_CREDENTIAL_BYTES, PayloadTooLargeError, readJsonBody } from '@/lib/body';
+import { relay, tooLarge, unreachable } from '@/lib/relay';
 import { clearSession } from '@/lib/session';
 
 /**
@@ -19,10 +20,16 @@ import { clearSession } from '@/lib/session';
  * exactly the case not to get wrong.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const { token, newPassword } = (await request.json()) as {
-    token?: string;
-    newPassword?: string;
-  };
+  // Anonymous, so the body is bounded here rather than by `withSession`.
+  let body: { token?: string; newPassword?: string };
+  try {
+    body = await readJsonBody(request, MAX_CREDENTIAL_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) return tooLarge();
+    throw error;
+  }
+
+  const { token, newPassword } = body;
 
   if (!token || !newPassword) {
     return NextResponse.json(

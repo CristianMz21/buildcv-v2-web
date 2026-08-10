@@ -1,6 +1,7 @@
 import type { NextRequest, NextResponse } from 'next/server';
 
 import { apiFetch, apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 
 /**
@@ -37,5 +38,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * form asks for both rather than posting blanks and rendering the field errors that come back.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  return withSession(async () => relay(await apiPost('/resumes', await request.json())));
+  return withSession(async () => relay(await apiPost('/resumes', await readJsonBody(request))));
 }

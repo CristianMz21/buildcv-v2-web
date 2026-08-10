@@ -3,7 +3,22 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 
 import { ApiTimeoutError, ApiUnreachableError, NoSessionError } from './backend';
+import { PayloadTooLargeError } from './body';
 import { clearSession } from './session';
+
+/**
+ * The answer for a body this app refused to finish reading.
+ *
+ * 413 is the whole message: there is no detail worth adding, because a caller sending megabytes to a
+ * route that reads an email is either broken or not a caller. The limit is not quoted back — it would
+ * only tell someone probing exactly how much they may send.
+ */
+export function tooLarge(): NextResponse {
+  return NextResponse.json(
+    { status: 413, title: 'Payload Too Large', detail: 'That request body is too large.' },
+    { status: 413, headers: { 'content-type': 'application/problem+json' } },
+  );
+}
 
 /**
  * The answer for a call the API never completed — refused, or accepted and then silent.
@@ -109,6 +124,11 @@ export async function withSession(handler: () => Promise<NextResponse>): Promise
     // Every authenticated route gets this for free by being wrapped here, which is the point: an
     // outage should not need twenty route handlers to each remember to describe it.
     if (error instanceof ApiUnreachableError) return unreachable(error);
+
+    // Nine of the thirteen body-parsing routes read theirs inside this wrapper, so they are covered
+    // here. The four that are not are the anonymous ones, which handle it themselves because they
+    // have no session to wrap.
+    if (error instanceof PayloadTooLargeError) return tooLarge();
 
     if (error instanceof NoSessionError) {
       // THE COOKIES GO WITH THE 401, and leaving them was an infinite redirect loop rather than an
