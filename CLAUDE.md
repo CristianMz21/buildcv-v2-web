@@ -27,6 +27,7 @@ pnpm gen:api:check        # contract drift: needs a live API
 pnpm gen:types:check      # regenerate from the COMMITTED openapi.json — needs nothing, runs in CI
 pnpm contract:coverage    # every operation this BFF calls exists in openapi.json — needs nothing
 pnpm verify:image         # build the container and assert how it behaves — needs docker, runs in CI
+pnpm verify:deployment    # assert the LIVE deployment is what it claims — needs az, run after deploying
 ```
 
 `verify:image` is the only check that runs against the **artifact** rather than the source. Two of the
@@ -47,6 +48,24 @@ kernel and would fail to start at all where IPv6 is off, which is worse and unte
 With no argument it **always rebuilds**; pass a tag to verify a pre-existing image instead. That is
 not a convenience — the first version reused an existing tag, and its first run reported HSTS missing
 from an image that predated the commit adding it by twenty-one minutes.
+
+`verify:deployment` is the same idea one layer further out: it checks the **running deployment**, which
+is a third claim after "the source compiles" and "the artifact behaves". Everything between the two —
+the ingress, its TLS termination, which revision holds the traffic — was unasserted, and two findings
+lived exactly there: the security headers had never been measured through Azure's front door, and
+`SameSite` protects nothing on the hostname we deploy to.
+
+**It establishes which revision it is measuring before it measures anything, and that order is the
+design.** The Origin fix was nearly reported broken in production: the check waited for `/api/health`
+to answer 200, the PREVIOUS revision answered while the new one was still starting, and five
+assertions ran against the old deployment returning five plausible wrong numbers. A health endpoint
+answering means something is alive — not that what you just shipped is what is answering. It gates on
+a single revision holding **100% of traffic**, and refuses to measure at all during a rollout.
+
+Two smaller things it needs and would otherwise get wrong: the app runs at `min-replicas 0`, so it
+wakes it on a long leash first — a cold start read as a dead deployment on the first run. And its
+status helper **overwrites** on failure rather than appending, which is the same `|| echo 000` bug
+this repo already fixed once in `verify-image.sh` and which was written again here from memory.
 
 Run one e2e test / one step:
 
