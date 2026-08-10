@@ -167,6 +167,30 @@ button {
   box-shadow: 0 0 0 3px var(--primary-ring);
 }
 
+/*
+ * The one irreversible action in the product, and the only button that gets this.
+ *
+ * A destructive action styled like every other one is a destructive action somebody clicks by
+ * accident. Kept out of `btnPrimary`'s family on purpose: primary means "the thing to do here", and
+ * deleting an account never is.
+ */
+.btnDanger {
+  border: none;
+  background: var(--bad);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+.btnDanger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.btnDanger:disabled {
+  background: var(--border);
+  color: var(--fg-faint);
+}
+
 .btnGhost {
   border: none;
   background: transparent;
