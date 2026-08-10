@@ -125,7 +125,7 @@ export async function withSession(handler: () => Promise<NextResponse>): Promise
     // outage should not need twenty route handlers to each remember to describe it.
     if (error instanceof ApiUnreachableError) return unreachable(error);
 
-    // Nine of the thirteen body-parsing routes read theirs inside this wrapper, so they are covered
+    // Ten of the fourteen body-parsing routes read theirs inside this wrapper, so they are covered
     // here. The four that are not are the anonymous ones, which handle it themselves because they
     // have no session to wrap.
     if (error instanceof PayloadTooLargeError) return tooLarge();
