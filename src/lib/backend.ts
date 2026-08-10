@@ -103,17 +103,50 @@ export class NoSessionError extends Error {
  * queue we could not tell apart.
  */
 export class ApiUnreachableError extends Error {
-  constructor(cause: unknown) {
-    super('BuildCv.Api could not be reached.', { cause });
+  constructor(cause: unknown, message = 'BuildCv.Api could not be reached.') {
+    super(message, { cause });
     this.name = 'ApiUnreachableError';
   }
 }
 
-/** `fetch`, with a transport failure named rather than left as a bare TypeError. */
+/**
+ * How long one call to BuildCv.Api may take before it is abandoned.
+ *
+ * NODE'S `fetch` HAS NO DEFAULT TIMEOUT, and without this a hung API hung this app with it: the route
+ * handler waits on a socket that will never answer, the candidate watches a spinner with no end, and
+ * the connection stays held — so a slow API does not degrade this app, it exhausts it. A refused
+ * connection was already handled; a connection that is accepted and then goes silent is the failure
+ * that looks like nothing at all.
+ *
+ * 20s is chosen to be far longer than any call here legitimately takes and far shorter than "never".
+ * If one endpoint ever needs more — document import is the plausible one, since the API parses the
+ * file inside that request — give that call its own budget rather than raising this for everything.
+ */
+const API_TIMEOUT_MS = 20_000;
+
+/**
+ * The API accepted the connection and then did not answer in time.
+ *
+ * EXTENDS `ApiUnreachableError` DELIBERATELY. Four anonymous routes and `withSession` already catch
+ * that type, so a timeout cannot escape as a bare 500 through a handler nobody remembered to update —
+ * the subclass makes correct handling the default and the distinction an improvement on top.
+ */
+export class ApiTimeoutError extends ApiUnreachableError {
+  constructor(cause: unknown) {
+    super(cause, `BuildCv.Api did not answer within ${API_TIMEOUT_MS / 1000}s.`);
+    this.name = 'ApiTimeoutError';
+  }
+}
+
+/** `fetch`, bounded in time, with a transport failure named rather than left as a bare TypeError. */
 async function reach(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, init);
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
   } catch (cause) {
+    // `AbortSignal.timeout` rejects with a DOMException named TimeoutError. Matching on the name
+    // rather than the class because DOMException identity is not something to depend on across
+    // runtimes, and the fallback below is correct for anything unrecognised.
+    if (cause instanceof Error && cause.name === 'TimeoutError') throw new ApiTimeoutError(cause);
     throw new ApiUnreachableError(cause);
   }
 }

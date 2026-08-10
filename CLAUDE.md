@@ -91,6 +91,17 @@ The consequences that constrain new code:
 - **Every authenticated call goes through `apiFetch` / `apiPost`** in `src/lib/backend.ts`. Refresh is
   proactive off the token's `exp`; the 401 retry is a clock-skew safety net, not the mechanism.
   Anonymous routes (`login`, `register`) bypass it because there is no session yet.
+- **Every call is bounded in time — `reach()` passes `AbortSignal.timeout(20s)`.** Node's `fetch` has
+  no default timeout, so before this a hung API hung this app with it: the handler waited on a socket
+  that would never answer and the connection stayed held, which means a slow API did not degrade this
+  app, it exhausted it. A *refused* connection was already handled; one that is accepted and then goes
+  silent is the failure that looks like nothing at all. `ApiTimeoutError` extends
+  `ApiUnreachableError` on purpose, so the five places that already catch that type handle it without
+  edits — the subclass only buys the 504-instead-of-503 distinction on top.
+
+  Measured, and reproducible in two commands: run a TCP server that accepts and never writes, point
+  `BUILDCV_API_ORIGIN` at it, and `POST /api/auth/login` answers **504 in 20.0s** with a
+  ProblemDetails body. Against a closed port it is still **503 in 0.4s**.
 - **Route handlers are thin**: validate what came off the URL, then `withSession(async () =>
   relay(await apiPost(...)))`. `relay` passes status, body and `content-type` through unchanged so the
   API's ProblemDetails — including the `errors` map keyed by field path — reaches the form that needs

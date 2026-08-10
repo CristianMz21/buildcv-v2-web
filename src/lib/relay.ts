@@ -2,28 +2,39 @@ import 'server-only';
 
 import { NextResponse } from 'next/server';
 
-import { ApiUnreachableError, NoSessionError } from './backend';
+import { ApiTimeoutError, ApiUnreachableError, NoSessionError } from './backend';
 import { clearSession } from './session';
 
 /**
- * The answer for a call that never reached the API.
+ * The answer for a call the API never completed — refused, or accepted and then silent.
  *
- * 503 AND NOT 500, because the two say different things to everyone who reads them: 500 is "this
- * app is broken", 503 is "the thing behind it is not answering, try again". A load balancer, a
+ * NOT 500, because the two say different things to everyone who reads them: 500 is "this app is
+ * broken", 5xx-upstream is "the thing behind it is not answering, try again". A load balancer, a
  * monitor and a candidate all act differently on that.
  *
  * The sentence says whose fault it is out loud. Until this existed, an outage and a wrong password
  * produced the same words on the sign-in screen, so every one of our failures arrived as somebody
  * doubting their own memory.
  */
-export function unreachable(): NextResponse {
+export function unreachable(error?: unknown): NextResponse {
+  // A refused connection and a silent one are different diagnoses and deserve different codes: 503
+  // says the thing behind this is down, 504 says it took the call and never came back. To a candidate
+  // both mean "not your fault, try again" — the sentence differs only in what actually happened — but
+  // to whoever reads the logs at 3am they are the difference between a crashed process and a wedged
+  // one, and that is not worth flattening for the sake of a single branch.
+  const timedOut = error instanceof ApiTimeoutError;
+
+  const status = timedOut ? 504 : 503;
+
   return NextResponse.json(
     {
-      status: 503,
-      title: 'Service Unavailable',
-      detail: 'BuildCv is not answering right now. This is not something you did — try again shortly.',
+      status,
+      title: timedOut ? 'Gateway Timeout' : 'Service Unavailable',
+      detail: timedOut
+        ? 'BuildCv took too long to answer and the request was given up on. This is not something you did — try again shortly.'
+        : 'BuildCv is not answering right now. This is not something you did — try again shortly.',
     },
-    { status: 503, headers: { 'content-type': 'application/problem+json' } },
+    { status, headers: { 'content-type': 'application/problem+json' } },
   );
 }
 
@@ -72,7 +83,7 @@ export async function withSession(handler: () => Promise<NextResponse>): Promise
   } catch (error) {
     // Every authenticated route gets this for free by being wrapped here, which is the point: an
     // outage should not need twenty route handlers to each remember to describe it.
-    if (error instanceof ApiUnreachableError) return unreachable();
+    if (error instanceof ApiUnreachableError) return unreachable(error);
 
     if (error instanceof NoSessionError) {
       // THE COOKIES GO WITH THE 401, and leaving them was an infinite redirect loop rather than an

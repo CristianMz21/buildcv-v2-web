@@ -21,7 +21,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     outcome = await login(email, password);
   } catch (error) {
-    if (error instanceof ApiUnreachableError) return unreachable();
+    if (error instanceof ApiUnreachableError) return unreachable(error);
     throw error;
   }
 
