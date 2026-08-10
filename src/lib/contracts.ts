@@ -42,8 +42,16 @@ export type PagedAnalyses = Schemas['PagedResponseOfAnalysisResponse'];
 
 export type TokenResponse = Schemas['TokenResponse'];
 
-/** An Application type on the wire — a debt the API documents rather than hides. */
-export type AccountResponse = Schemas['AccountDto'];
+/**
+ * The account's own wire contract.
+ *
+ * This used to alias `AccountDto`, an Application type that had leaked onto the wire — a debt the API
+ * named rather than hid. It has since been paid, and the rename is the only breaking change in the
+ * API's move to its deployable branch: nothing else was removed. The four fields read here — `email`,
+ * `role`, `isEmailVerified`, `createdAt` — are all carried by the new shape, so this was a
+ * compile-time break and never a runtime one.
+ */
+export type AccountResponse = Schemas['AccountResponse'];
 
 // ── Resumes ────────────────────────────────────────────────────────────────────
 
@@ -199,6 +207,49 @@ export type RecommendationResponse = Omit<
 
 export type ScoringWeightsResponse = Schemas['ScoringWeightsResponse'];
 
+/**
+ * Where in the CV a requirement was answered. **Closed at three, and the omission is the point.**
+ *
+ * `ScoringRules.IsSatisfiedBy` reads a candidate's skill names, their skill keywords, and their
+ * projects' technologies. **It never reads work history.** An experience does not participate in
+ * deciding whether a requirement is met, so nothing may order experiences by relevance to a posting
+ * — there is no such relevance to order by, and inventing one would put a ranking on screen beside a
+ * score that never considered it.
+ *
+ * Experiences on a tailored CV go newest first. That is a CV convention, not a claim about matching,
+ * and it has to be said as one.
+ */
+export type MatchSource = 'SkillName' | 'SkillKeyword' | 'ProjectTechnology' | (string & {});
+
+/**
+ * One place a requirement was answered, in the candidate's own words.
+ *
+ * `matchedText` is what the CV actually said — `React.js` against a requirement for `React`. It is
+ * the visible half of the engine's synonym lexicon, which is embedded server-side and served
+ * nowhere: without this field a client can know THAT something matched but never what did, which is
+ * why `format.ts` used to search recommendation prose for the requirement's own string.
+ */
+export type RequirementEvidenceResponse = Narrow<
+  Schemas['RequirementEvidenceResponse'],
+  'source',
+  MatchSource
+>;
+
+/**
+ * One of the posting's requirements, and what in the CV answered it.
+ *
+ * `matchedBy` lists EVERY place that answered, not the first — summing `weight` over the satisfied
+ * entries reproduces the skills section's own matched fraction. An unsatisfied requirement carries an
+ * empty list, and that pair is the only honest source for "what this CV does not cover".
+ */
+export type RequirementMatchResponse = Omit<
+  Schemas['RequirementMatchResponse'],
+  'priority' | 'matchedBy'
+> & {
+  priority: RequirementPriority;
+  matchedBy: RequirementEvidenceResponse[];
+};
+
 export type ScoreBreakdownResponse = Narrow<
   Schemas['ScoreBreakdownResponse'],
   'sections',
@@ -215,11 +266,22 @@ export type ScoreBreakdownResponse = Narrow<
  */
 export type AnalysisResponse = Omit<
   Schemas['AnalysisResponse'],
-  'breakdown' | 'recommendations' | 'band'
+  'breakdown' | 'recommendations' | 'band' | 'requirementMatches'
 > & {
   breakdown: ScoreBreakdownResponse;
   recommendations: RecommendationResponse[];
   band: ScoreBand;
+  /**
+   * **`null` IS NOT `[]`.** A fresh `POST /api/scoring/score` carries attribution; reading a stored
+   * analysis back — `GET /api/scoring/{id}`, the history — carries `null`, because it would otherwise
+   * have to be computed against the CV as it is now rather than the one that was scored. `[]` means
+   * something else entirely: the posting stated no requirements.
+   *
+   * A screen that renders `null` as "nothing matched" would report an absent answer as a bad one.
+   * De-duplication is safe here: a reused analysis is proof the CV has not changed, so it carries
+   * attribution too.
+   */
+  requirementMatches: RequirementMatchResponse[] | null;
 };
 
 // ── Readability ────────────────────────────────────────────────────────────────
