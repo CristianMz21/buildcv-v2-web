@@ -1,6 +1,6 @@
 import type {
   RecommendationPriority,
-  RecommendationResponse,
+  RequirementMatchResponse,
   ScoreBand,
   SectionName,
 } from './contracts';
@@ -218,21 +218,45 @@ export function relativeTime(iso: string, now: number = Date.now()): string {
 }
 
 /**
- * Whether the server flagged this exact requirement as missing.
+ * What answered each of a posting's requirements, from the engine's own attribution.
  *
- * The check is CONTAINMENT OF THE REQUIREMENT'S OWN SKILL STRING in a `Missing*Skill` recommendation,
- * not a re-implementation of the matcher. That matters: the scoring engine recognises alternative
- * spellings — `"React.js"` satisfies a requirement for `"React"` — and a comparison written here
- * against the resume's skill list would disagree with the score sitting next to it. Two statements of
- * one rule is how they drift.
+ * THIS REPLACES A STRING SEARCH THROUGH RECOMMENDATION PROSE. Until the API published
+ * `requirementMatches`, the only way to know whether a requirement was met was to look for its own
+ * text inside a "missing skill" sentence: a recommendation whose wording changed stopped matching, so
+ * a chip could only ever read as UNVERIFIED rather than as found. That was the direction that could
+ * not mislead, and it was the best available.
  *
- * A recommendation whose wording changes stops matching and the chip reads as UNVERIFIED rather than
- * as found, which is the direction that cannot mislead.
+ * It is also why there was no "found" chip anywhere on the results screen. Recommendations are capped
+ * at ten, so the absence of a flag was never evidence of a match. `requirementMatches` carries EVERY
+ * requirement, satisfied or not, so absence is no longer what has to be interpreted — the engine says
+ * outright which answered and with which of the candidate's own words.
+ *
+ * Returns `null` for a requirement the attribution does not cover, and for every requirement when
+ * there is no attribution at all. `null` is a third state and not a `false`: "this analysis did not
+ * carry the answer" is not "your CV does not have it", and rendering them alike would accuse a
+ * candidate of a gap the engine never reported.
  */
-export function missingSkills(recommendations: RecommendationResponse[]): (skill: string) => boolean {
-  const messages = recommendations
-    .filter((r) => r.kind === 'MissingMustHaveSkill' || r.kind === 'MissingNiceToHaveSkill')
-    .map((r) => r.message);
+export interface RequirementAnswer {
+  satisfied: boolean;
+  /** The candidate's own words that answered it — `React.js` against a requirement for `React`. */
+  by: string[];
+}
 
-  return (skill: string) => messages.some((message) => message.includes(`'${skill}'`));
+export function requirementAnswers(
+  matches: readonly RequirementMatchResponse[] | null,
+): (skill: string) => RequirementAnswer | null {
+  if (matches === null) return () => null;
+
+  // Keyed case-insensitively because the engine matched that way and a posting is free text.
+  const bySkill = new Map(matches.map((match) => [match.skill.trim().toLowerCase(), match]));
+
+  return (skill: string) => {
+    const match = bySkill.get(skill.trim().toLowerCase());
+    if (!match) return null;
+
+    return {
+      satisfied: match.satisfied,
+      by: match.matchedBy.map((evidence) => evidence.matchedText),
+    };
+  };
 }

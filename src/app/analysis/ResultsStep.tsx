@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 import { ArrowRight, Check, Cross, Warning } from '@/components/icons';
 import type { AnalysisResponse, JobPostingResponse, SectionScoreResponse } from '@/lib/contracts';
-import { bandCopy, bandTone, missingSkills, sectionLabel, toPercent } from '@/lib/format';
+import { bandCopy, bandTone, requirementAnswers, sectionLabel, toPercent } from '@/lib/format';
 
 import styles from './analysis.module.css';
 import { Notice } from './Notice';
@@ -43,8 +43,12 @@ export function ResultsStep({
   const measured = sections.filter((s) => s.weight > MEASURED);
   const unmeasured = sections.filter((s) => s.weight <= MEASURED);
   const strong = measured.filter((s) => s.score >= STRONG_SECTION);
-  const isMissing = missingSkills(analysis.recommendations);
-  const missingCount = posting.requirements.filter((r) => isMissing(r.skill)).length;
+  // `null` when this analysis carries no attribution — a stored run read back rather than freshly
+  // scored. Three states, not two: answered, not answered, and not known.
+  const answerFor = requirementAnswers(analysis.requirementMatches);
+  const answers = posting.requirements.map((r) => answerFor(r.skill));
+  const knownCount = answers.filter((a) => a !== null).length;
+  const answeredCount = answers.filter((a) => a?.satisfied).length;
 
   return (
     <div className={styles.screen}>
@@ -217,12 +221,23 @@ export function ResultsStep({
         <p className={styles.panelLead}>
           {posting.requirements.length === 0
             ? 'None were recorded, so the skills section carried no weight in the score above.'
-            : `${missingCount} of ${posting.requirements.length} flagged as missing from your CV.`}
+            : knownCount === 0
+              ? `${posting.requirements.length} recorded. This run was read back from storage, so it does not say which your CV answers.`
+              : `${answeredCount} of ${knownCount} answered by your CV.`}
         </p>
 
         <div className={styles.chipRow}>
-          {posting.requirements.map((requirement) => {
-            const missing = isMissing(requirement.skill);
+          {posting.requirements.map((requirement, index) => {
+            const answer = answers[index] ?? null;
+            const missing = answer !== null && !answer.satisfied;
+            const answered = answer?.satisfied ?? false;
+
+            // The candidate's own wording, shown only when it differs from what the posting asked
+            // for. "React.js" against a requirement for "React" is the one thing a candidate cannot
+            // work out for themselves, and it is the engine's synonym lexicon made visible.
+            const differing = (answer?.by ?? []).filter(
+              (text) => text.trim().toLowerCase() !== requirement.skill.trim().toLowerCase(),
+            );
 
             return (
               <span
@@ -235,11 +250,21 @@ export function ResultsStep({
                         color: 'var(--bad-fg)',
                         borderColor: 'var(--bad-border)',
                       }
-                    : undefined
+                    : answered
+                      ? {
+                          background: 'var(--good-bg)',
+                          color: 'var(--good-strong)',
+                          borderColor: 'var(--good-border)',
+                        }
+                      : undefined
                 }
               >
                 {missing && <Cross size={11} />}
+                {answered && <Check size={11} />}
                 {requirement.skill}
+                {differing.length > 0 && (
+                  <span className={styles.chipMuted}>via {differing.join(', ')}</span>
+                )}
                 <span className={styles.chipMuted}>
                   {requirement.priority === 'MustHave' ? 'must have' : 'nice to have'}
                 </span>
@@ -249,17 +274,19 @@ export function ResultsStep({
         </div>
 
         {/*
-          No green "found" chip anywhere, and this is the reason. The API caps recommendations at ten
-          and returns the highest-impact ones, so a skill with no flag beside it may simply have been
-          ranked out — absence of advice is not evidence of a match. Re-deriving the match here from
-          the CV's own skill list would be worse: the engine recognises alternative spellings
-          ("React.js" satisfies "React"), so a second matcher written in this file would eventually
-          contradict the score printed above it.
+          A "found" chip exists now, and the reason it could not before is worth keeping. The API
+          caps recommendations at ten, so absence of advice was never evidence of a match — and
+          re-deriving the match in this file would have been worse, because the engine recognises
+          alternative spellings and a second matcher here would eventually contradict the score
+          printed above it.
+
+          `requirementMatches` carries EVERY requirement with what answered it, so the claim is the
+          server's rather than an inference from silence. Absence is no longer what is interpreted.
         */}
-        {posting.requirements.length > 0 && (
+        {posting.requirements.length > 0 && knownCount === 0 && (
           <p className={styles.footnote} style={{ textAlign: 'left', marginTop: 12 }}>
-            Only the ten highest-impact recommendations are returned, so a skill without a flag has
-            not necessarily been matched.
+            This analysis was read back from storage rather than scored just now, so it does not carry
+            which requirements your CV answers. Running it again would say.
           </p>
         )}
       </div>
