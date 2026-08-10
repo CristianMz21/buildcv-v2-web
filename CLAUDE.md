@@ -100,6 +100,18 @@ run in CI. Neither asks whether the app calls operations the contract describes 
 no for three of them, invisibly, because route handlers relay untyped: the path is a string, the body
 passes through, and `tsc` has no opinion about either.
 
+It checks **both hops of the same seam**: browser → BFF against the route handlers under
+`src/app/api`, and BFF → API against `openapi.json`. The second half found the three; the first half
+is clean and is there because a screen calling a route nobody serves is a 404 that only the smoke
+suite would catch, and the smoke suite needs a real API.
+
+Two things about it are load-bearing. `${section}` is **expanded** against `RESUME_SECTIONS` rather
+than treated as a parameter — the contract names each collection separately, so a name added to that
+closed list which the API does not serve fails here, which is the failure `isResumeSection` exists to
+prevent and nothing else can see. And call sites are found by **any literal containing `/api/`**, not
+by matching `fetch(`: the editor writes through a `write()` helper, and matching the call shape missed
+five of its sites while reporting a pass.
+
 ## Architecture: a BFF, and every rule follows from that
 
 Browser → Next.js route handler (`src/app/api/**`) → `src/lib/backend.ts` → `BuildCv.Api /v1`.
