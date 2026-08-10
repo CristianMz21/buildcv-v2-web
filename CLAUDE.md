@@ -105,6 +105,14 @@ It checks **both hops of the same seam**: browser → BFF against the route hand
 is clean and is there because a screen calling a route nobody serves is a 404 that only the smoke
 suite would catch, and the smoke suite needs a real API.
 
+**It checks paths, not HTTP methods, on the browser → BFF hop** — and that is a limit rather than an
+oversight. The method often is not written beside the path: the editor passes `json(body)`, a helper
+whose `method: 'POST'` lives somewhere else entirely, so a rule that reads ahead from the path would
+call it a GET and report a 405 that is not there. The methods were checked **by hand, once**, against
+what each handler exports: fourteen explicit and nine implicit GETs, all matching. A wrong method is
+a 405 on first click rather than a silent mismatch, which is why the manual pass was worth doing and
+an unreliable automatic one is not.
+
 Two things about it are load-bearing. `${section}` is **expanded** against `RESUME_SECTIONS` rather
 than treated as a parameter — the contract names each collection separately, so a name added to that
 closed list which the API does not serve fails here, which is the failure `isResumeSection` exists to

@@ -153,7 +153,12 @@ let clientChecked = 0;
 for (const file of globSync('src/**/*.{ts,tsx}')) {
   if (file.startsWith('src/app/api/')) continue;
 
-  for (const [, raw] of readFileSync(file, 'utf8').matchAll(/[`'"](\/api\/[^`'"]*)[`'"]/g)) {
+  // The literal has to be an ARGUMENT — preceded by `(` or `,`. Matching the quotes alone counted
+  // prose: a comment in src/lib/body.ts describes a 121 MB POST to `/api/auth/login`, and backticks
+  // around a path in a sentence are indistinguishable from a template literal. It passed only because
+  // that route happens to exist; a comment naming a removed or hypothetical route would have failed
+  // CI over an English sentence, which is how a check earns a reputation for crying wolf.
+  for (const [, raw] of readFileSync(file, 'utf8').matchAll(/[(,]\s*[`'"](\/api\/[^`'"]*)[`'"]/g)) {
     const want = segments(raw);
     clientChecked += 1;
 
