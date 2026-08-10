@@ -170,7 +170,7 @@ because their advice does not describe this project:
 | Removed | Why |
 |---|---|
 | `nodejs-backend-patterns` | Express/Fastify services. There is no Node backend; the server is ASP.NET in `buildcv-v2`, and route handlers here are a four-line relay by design. |
-| `next-cache-components` | Next.js 16 `use cache` and PPR. This project is on 15.5.4 and every API call is `cache: 'no-store'` per-user data behind a session. |
+| `next-cache-components` | Next.js 16 `use cache` and PPR. This project is on the 15.5 line and every API call is `cache: 'no-store'` per-user data behind a session. |
 | `seo` | Targets public pages. Everything but `/login` and `/register` is behind a session gate, and `frame-ancestors 'none'` says this app is not meant to be indexed. |
 | `nodejs-best-practices` | Framework selection and general architecture, for a project whose framework and architecture are settled. |
 | `next-upgrade` | Only applies during a version migration. |
@@ -188,6 +188,17 @@ running it, or decide knowingly to keep them.
   repository, and a job that mocked one would assert nothing. The `image` job needs no API and no
   credentials, which is why it belongs here — and it is the only job that can fail on a property of
   the thing that actually ships.
+- **Dependency advisories are answered, not carried.** `pnpm audit --prod` must report clean. Two
+  transitive packages sit under `overrides:` in **`pnpm-workspace.yaml`** — they arrive under `next`,
+  which pins ranges that still resolve to vulnerable versions, and an override is the only lever a
+  consumer has. Revisit them on every Next upgrade: once upstream moves past them they become dead
+  pins nobody is watching.
+
+  Two traps here, both measured. With a workspace file present, `pnpm.overrides` in **package.json is
+  inert** — pnpm 11 reads this file instead, and says nothing about the field it ignored. And a plain
+  `pnpm install` can answer *"Already up to date"* without re-resolving, so an override appears not to
+  work when it simply has not been applied yet. Neither failure is visible anywhere except in
+  `pnpm audit --prod` run after a command that actually resolves.
 - **`.claude/settings.json`** denies `Edit`/`Write` on `src/lib/api-schema.d.ts` and `openapi.json`.
   Three places say those files are generated and nothing enforced it; a type widened by hand to make
   `tsc` agree with a screen is exactly the edit that gets reverted by the next `gen:api`. The
