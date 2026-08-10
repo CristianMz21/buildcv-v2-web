@@ -42,8 +42,16 @@ export type PagedAnalyses = Schemas['PagedResponseOfAnalysisResponse'];
 
 export type TokenResponse = Schemas['TokenResponse'];
 
-/** An Application type on the wire — a debt the API documents rather than hides. */
-export type AccountResponse = Schemas['AccountDto'];
+/**
+ * The account's own wire contract.
+ *
+ * This used to alias `AccountDto`, an Application type that had leaked onto the wire — a debt the API
+ * named rather than hid. It has since been paid, and the rename is the only breaking change in the
+ * API's move to its deployable branch: nothing else was removed. The four fields read here — `email`,
+ * `role`, `isEmailVerified`, `createdAt` — are all carried by the new shape, so this was a
+ * compile-time break and never a runtime one.
+ */
+export type AccountResponse = Schemas['AccountResponse'];
 
 // ── Resumes ────────────────────────────────────────────────────────────────────
 

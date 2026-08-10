@@ -32,7 +32,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AccountDto"];
+                        "application/json": components["schemas"]["AccountResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -313,7 +313,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AccountDto"];
+                        "application/json": components["schemas"]["AccountResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -391,7 +391,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AccountDto"];
+                        "application/json": components["schemas"]["AccountResponse"];
                     };
                 };
                 /** @description Bad Request */
@@ -1148,7 +1148,80 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Returns this resume's readability history, OLDEST FIRST, keyset paginated.
+         * @description The second list in this API that pages oldest first — `GET /v1/resumes/{id}/analyses` is the other — because a history is read forwards, so `cursor` walks toward the present. Entries are the same shape POST /v1/resumes/{id}/readability returns. EVERY POST WRITES AN ENTRY: there is no de-duplication here, so two identical requests against an unedited CV produce two entries with the same numbers. Entries with different `weights.schemaVersion` values were produced by different readability models and are not comparable; compare `weights` before comparing `readabilityScore`. Each entry's numbers are as they were taken and are never re-measured on read — there is no `isStale` on a readability report, because nothing on it records the state of the CV it graded. `nextCursor` is null on the last page and is the only supported way to ask for more.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResponseOfReadabilityResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         put?: never;
         /**
          * Scores how readable this resume is on its own, with no job posting involved.
@@ -4273,6 +4346,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/job-offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists every job posting the caller owns, newest first, keyset paginated.
+         * @description OWNERSHIP, NOT PROVENANCE. This returns every posting whose owner is the caller — the offers imported at POST /v1/job-offers/import and, for a recruiter, the postings they created at POST /v1/jobs. Nothing on a posting records which route wrote it, so there is no narrower list to ask for; a Candidate cannot reach POST /v1/jobs, so for a candidate the two are the same. Entries are the same shape /v1/jobs/{id} returns, `status` included — a candidate's own offer stays `Draft` for its whole life, because publishing is a recruiter action. Postings owned by an ORGANIZATION the caller belongs to are NOT here: this lists what the caller owns, and `GET /v1/jobs/{id}` is the route that admits an organization's members. `nextCursor` is null on the last page and is the only supported way to ask for more.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    cursor?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResponseOfJobPostingResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/job-offers/extract": {
         parameters: {
             query?: never;
@@ -4822,6 +4982,15 @@ export interface paths {
                         "application/problem+json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Not Found */
                 404: {
                     headers: {
@@ -4870,6 +5039,15 @@ export interface paths {
                         "application/json": components["schemas"]["AnalysisResponse"];
                     };
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
                 /** @description Forbidden */
                 403: {
                     headers: {
@@ -4898,11 +5076,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/readability/{reportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Returns one stored readability report, readable only by the owner of the resume it graded.
+         * @description A readability report has no owner of its own: it belongs to a resume, and that resume's owner is the only account that may read it. Deleting the resume hides every report derived from it, so a previously readable id then answers 404. THE NUMBERS ARE AS THEY WERE TAKEN and are not re-measured on read: a report grades the CV as it stood at `evaluatedAt`, and there is no `isStale` here — unlike an analysis, a report records nothing about the resume's state to compare today's against. To find out where the CV stands now, POST /v1/resumes/{id}/readability again. `readabilityScore` is NOT `overallScore` and the two must never be added together: one grades the resume, the other grades a match against one job posting.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    reportId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ReadabilityResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        AccountDto: {
+        AccountResponse: {
             /** Format: uuid */
             id: string;
             email: string;
@@ -4999,7 +5263,6 @@ export interface components {
             level: null | string;
             /** Format: int32 */
             yearsOfExperience: null | number;
-            keywords?: null | string[];
         };
         AnalysisResponse: {
             /** Format: uuid */
@@ -5308,6 +5571,14 @@ export interface components {
         };
         PagedResponseOfAnalysisResponse: {
             items: components["schemas"]["AnalysisResponse"][];
+            nextCursor: null | string;
+        };
+        PagedResponseOfJobPostingResponse: {
+            items: components["schemas"]["JobPostingResponse"][];
+            nextCursor: null | string;
+        };
+        PagedResponseOfReadabilityResponse: {
+            items: components["schemas"]["ReadabilityResponse"][];
             nextCursor: null | string;
         };
         PagedResponseOfResumeSummaryResponse: {
