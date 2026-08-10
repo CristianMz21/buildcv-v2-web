@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 
 import { ApiUnreachableError, login } from '@/lib/backend';
-import { unreachable } from '@/lib/relay';
+import { MAX_CREDENTIAL_BYTES, PayloadTooLargeError, readJsonBody } from '@/lib/body';
+import { tooLarge, unreachable } from '@/lib/relay';
 import { writeSession } from '@/lib/session';
 
 export async function POST(request: Request): Promise<NextResponse> {
-  const { email, password } = (await request.json()) as { email?: string; password?: string };
+  // Bounded here rather than by `withSession`, which this route does not use, and bounded TIGHTLY:
+  // reachable without a session, it reads two short strings and has no business buffering more.
+  let credentials: { email?: string; password?: string };
+  try {
+    credentials = await readJsonBody(request, MAX_CREDENTIAL_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) return tooLarge();
+    throw error;
+  }
+
+  const { email, password } = credentials;
 
   if (!email || !password) {
     return NextResponse.json(

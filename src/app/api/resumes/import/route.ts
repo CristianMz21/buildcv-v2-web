@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 
 /**
@@ -17,5 +18,5 @@ import { relay, withSession } from '@/lib/relay';
  * valid, just unable to answer that one question.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  return withSession(async () => relay(await apiPost('/resumes/import', await request.json())));
+  return withSession(async () => relay(await apiPost('/resumes/import', await readJsonBody(request))));
 }

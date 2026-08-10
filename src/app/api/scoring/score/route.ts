@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { apiPost } from '@/lib/backend';
+import { readJsonBody } from '@/lib/body';
 import { relay, withSession } from '@/lib/relay';
 
 /**
@@ -13,7 +14,7 @@ import { relay, withSession } from '@/lib/relay';
  */
 export async function POST(request: Request): Promise<NextResponse> {
   return withSession(async () => {
-    const { resumeId, jobPostingId } = (await request.json()) as {
+    const { resumeId, jobPostingId } = (await readJsonBody(request)) as {
       resumeId?: string;
       jobPostingId?: string;
     };
