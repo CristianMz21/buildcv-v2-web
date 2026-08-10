@@ -116,6 +116,55 @@ for (const file of sources) {
   }
 }
 
+// ── The other half of the same seam: browser → BFF ────────────────────────────
+//
+// A screen calling `/api/…` that no route handler serves is a 404 nobody sees until a person clicks
+// it. The smoke suite would catch it — and the smoke suite needs a real API, so it does not run here.
+//
+// EXTRACTION IS BY LITERAL, not by `fetch(`. The first attempt matched `fetch(` and silently missed
+// five call sites, because the editor writes through a `write()` helper: it would have reported full
+// coverage of eighty percent of the calls. Any literal containing `/api/` is the reliable net.
+const HANDLERS = globSync('src/app/api/**/route.ts').map((f) =>
+  f.replace(/^src\/app\/api/, '').replace(/\/route\.ts$/, ''),
+);
+
+/**
+ * A `[param]` in a handler and a `${expr}` in a caller both match exactly one segment.
+ *
+ * The leading `api` segment is dropped because handler paths are derived from `src/app/api/**` and
+ * already have it stripped. Forgetting that compared three segments against two and reported every
+ * single call as unserved — a check that fails on everything is indistinguishable from a check that
+ * works, right up until you read what it says.
+ */
+function segments(path) {
+  return path
+    .split('?')[0]
+    .split('/')
+    .filter(Boolean)
+    .filter((s, i) => !(i === 0 && s === 'api'))
+    .map((s) => (/^\[.*\]$/.test(s) || /\$\{.*\}/.test(s) ? '*' : s));
+}
+
+const handlerShapes = HANDLERS.map(segments);
+
+const unserved = [];
+let clientChecked = 0;
+
+for (const file of globSync('src/**/*.{ts,tsx}')) {
+  if (file.startsWith('src/app/api/')) continue;
+
+  for (const [, raw] of readFileSync(file, 'utf8').matchAll(/[`'"](\/api\/[^`'"]*)[`'"]/g)) {
+    const want = segments(raw);
+    clientChecked += 1;
+
+    const served = handlerShapes.some(
+      (h) => h.length === want.length && h.every((s, i) => s === '*' || want[i] === '*' || s === want[i]),
+    );
+
+    if (!served) unserved.push(`${raw} — no route handler under src/app/api (${file})`);
+  }
+}
+
 for (const line of dynamic) console.log(`  ? ${line}`);
 if (dynamic.length > 0) console.log(`  ${dynamic.length} call(s) built from a variable — not checked\n`);
 
@@ -126,7 +175,14 @@ if (missing.length > 0) {
     `\nRegenerate with \`pnpm gen:api\` against a running BuildCv.Api. If the API genuinely does not\n` +
       `serve one of these, the caller is wrong and the contract is right.`,
   );
-  process.exit(1);
 }
 
+if (unserved.length > 0) {
+  console.error(`\n${unserved.length} screen call(s) with no route handler:\n`);
+  for (const line of unserved) console.error(`  ✗ ${line}`);
+}
+
+if (missing.length > 0 || unserved.length > 0) process.exit(1);
+
 console.log(`${checked} operation(s) checked against ${CONTRACT} — all declared.`);
+console.log(`${clientChecked} screen call(s) checked against src/app/api — all served.`);
