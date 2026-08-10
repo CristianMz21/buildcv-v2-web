@@ -159,7 +159,18 @@ export function HistoryScreen({ resumeId }: { resumeId: string }) {
                 {plural(group.runs.length, 'run')} · best {best}
               </span>
             </div>
-            <p className={styles.groupLead}>Oldest first. Same posting, so these are comparable.</p>
+            <p className={styles.groupLead}>
+              Oldest first. Same posting, so these are comparable.{' '}
+              {/*
+                THE ONLY OTHER DOOR TO THE TAILORED CV. It was reachable from the analysis results
+                and from nowhere else, so a candidate who closed that tab had to paste the posting
+                again to get back to a document built from it — while this screen was already
+                listing that exact posting by name. The pair it needs is right here.
+              */}
+              <Link href={`/resumes/${resumeId}/print?posting=${group.postingId}`}>
+                Build a CV for this posting
+              </Link>
+            </p>
 
             <div className={styles.chart}>
               {group.runs.map((run) => {
