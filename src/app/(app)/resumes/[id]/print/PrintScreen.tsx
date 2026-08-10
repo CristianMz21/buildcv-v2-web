@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
-import { RESUME_SECTIONS, type ResumeResponse } from '@/lib/contracts';
+import { RESUME_SECTIONS, type AnalysisResponse, type ResumeResponse } from '@/lib/contracts';
 import { messageOf, readJson, SessionExpired } from '@/lib/http';
+import { tailor } from '@/lib/tailor';
 
 import { entriesOf, SECTION_SPECS } from '../sectionSpecs';
 import styles from './print.module.css';
@@ -31,6 +32,7 @@ import styles from './print.module.css';
 export function PrintScreen({ resumeId }: { resumeId: string }) {
   const router = useRouter();
   const [resume, setResume] = useState<ResumeResponse | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -41,6 +43,29 @@ export function PrintScreen({ resumeId }: { resumeId: string }) {
       const response = await fetch(`/api/resumes/${resumeId}`);
       if (response.status === 404) return setNotFound(true);
       setResume(await readJson<ResumeResponse>(response));
+
+      const postingId = new URLSearchParams(window.location.search).get('posting');
+      if (!postingId) return;
+
+      /*
+        SCORED AGAIN RATHER THAN READ BACK, and that is not waste. Attribution rides only the fresh
+        score response: reading a stored analysis answers `requirementMatches: null`, because the API
+        refuses to compute it against a CV that may have moved since it was scored.
+
+        Re-scoring the same pair costs nothing — `POST /v1/scoring/score` de-duplicates on (resume,
+        posting) and its reuse key includes the resume's own `updatedAt`, so an unchanged CV returns
+        the stored analysis with attribution attached, and a changed one is genuinely a new score
+        rather than an old one described wrongly.
+      */
+      setAnalysis(
+        await readJson<AnalysisResponse>(
+          await fetch('/api/scoring/score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ resumeId, jobPostingId: postingId }),
+          }),
+        ),
+      );
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
       setError(messageOf(caught, 'Could not load this CV.'));
@@ -82,6 +107,31 @@ export function PrintScreen({ resumeId }: { resumeId: string }) {
     .filter(Boolean)
     .join(' · ');
 
+  const tailored = tailor(resume, analysis?.requirementMatches ?? null);
+  const answered = analysis?.requirementMatches?.filter((match) => match.satisfied).length ?? 0;
+  const asked = analysis?.requirementMatches?.length ?? 0;
+
+  /**
+   * The entries of one section, in the order this posting reads them.
+   *
+   * ONLY TWO SECTIONS MOVE, and it is the engine that decides which: `ScoringRules.IsSatisfiedBy`
+   * reads skill names, skill keywords and project technologies, and nothing else. Experiences are
+   * left exactly as the CV holds them — reordering them would put a relevance on the page that
+   * nothing computed, next to a score that never looked at them.
+   */
+  const entriesFor = (section: (typeof RESUME_SECTIONS)[number]): Record<string, unknown>[] => {
+    if (!tailored.measured) return entriesOf(resume, section);
+
+    if (section === 'skills') {
+      return tailored.skills.map(({ entry }) => entry as unknown as Record<string, unknown>);
+    }
+    if (section === 'projects') {
+      return tailored.projects.map(({ entry }) => entry as unknown as Record<string, unknown>);
+    }
+
+    return entriesOf(resume, section);
+  };
+
   return (
     <>
       {/*
@@ -98,6 +148,44 @@ export function PrintScreen({ resumeId }: { resumeId: string }) {
         </button>
       </div>
 
+      {/*
+        WHAT WAS DONE TO THE CV, AND WHAT THIS CV DOES NOT COVER — on screen, never on paper.
+
+        A CV does not list its own gaps. Printing them would hand an employer an argument against
+        hiring, written by the candidate. They belong here, next to the download, where they are what
+        they actually are: the next thing to work on.
+      */}
+      {tailored.measured && (
+        <div className={styles.brief}>
+          <p className={styles.briefLead}>
+            Ordered for this posting — <strong>{answered} of {asked}</strong> requirements answered.
+            Skills and projects lead with what answered them. Nothing was rewritten, added or removed.
+          </p>
+
+          <p className={styles.briefNote}>
+            Experience is in your CV&rsquo;s own order, newest first. The scoring engine does not read
+            work history when deciding whether a requirement is met, so there is no relevance to rank
+            it by — and a ranking here would claim one that was never measured.
+          </p>
+
+          {tailored.unanswered.length > 0 && (
+            <>
+              <p className={styles.briefNote}>
+                Nothing in this CV answers these, so the posting counts them as gaps:
+              </p>
+              <ul className={styles.gaps}>
+                {tailored.unanswered.map((match) => (
+                  <li key={match.skill}>
+                    {match.skill}
+                    {match.priority === 'MustHave' && <span className={styles.mustHave}>must have</span>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
       <article className={styles.document}>
         <header className={styles.head}>
           <h1 className={styles.name}>{contact.fullName}</h1>
@@ -113,7 +201,7 @@ export function PrintScreen({ resumeId }: { resumeId: string }) {
 
         {RESUME_SECTIONS.map((section) => {
           const spec = SECTION_SPECS[section];
-          const entries = entriesOf(resume, section);
+          const entries = entriesFor(section);
 
           // An empty section prints nothing at all. A page of headings with no entries under them
           // reads as a template someone forgot to fill, which is not what this CV is.

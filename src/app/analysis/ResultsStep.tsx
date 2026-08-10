@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { ArrowRight, Check, Cross, Warning } from '@/components/icons';
 import type { AnalysisResponse, JobPostingResponse, SectionScoreResponse } from '@/lib/contracts';
 import { bandCopy, bandTone, missingSkills, sectionLabel, toPercent } from '@/lib/format';
@@ -54,10 +56,21 @@ export function ResultsStep({
           </div>
           <h1 className={styles.pageTitle}>Analysis results</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="btn" onClick={onRerun}>
             New analysis
           </button>
+          {/*
+            The step this screen never had. A score told a candidate how well their CV answers a
+            posting and then left them with the number — this is the CV that posting would read,
+            composed from what they already wrote and nothing else.
+          */}
+          <Link
+            href={`/resumes/${analysis.resumeId}/print?posting=${posting.id}`}
+            className="btn"
+          >
+            Build a CV for this job
+          </Link>
           <button type="button" className="btn btnPrimary" onClick={onViewSuggestions}>
             View suggestions <ArrowRight size={13} />
           </button>
