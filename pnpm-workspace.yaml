@@ -7,3 +7,22 @@ allowBuilds:
   # postinstall only picks the prebuilt binding for this platform — it compiles nothing and fetches
   # nothing — and lint has no resolver without it.
   unrs-resolver: true
+
+# Transitive dependencies of Next with published advisories, raised past them.
+#
+# THIS FILE IS WHERE PNPM 11 READS OVERRIDES FROM, not `pnpm.overrides` in package.json. With a
+# workspace file present the package.json field is inert, and the failure is silent: no warning, no
+# `overrides` section in the lockfile, and versions that quietly stay where they were. The only thing
+# that catches it is re-running `pnpm audit --prod` after the install — and note that a plain
+# `pnpm install` may answer "Already up to date" without re-resolving, so the audit has to follow a
+# command that actually resolves.
+#
+# Revisit on every Next upgrade: once the upstream range moves past these, the overrides become dead
+# weight that pins versions nobody is watching any more.
+overrides:
+  # Arbitrary file read, path traversal via source maps, and XSS through an unescaped </style>.
+  # Build-time only here — it processes this project's own CSS Modules — but the fix is a patch bump.
+  postcss: '>=8.5.23'
+  # Inherited libvips CVEs. Unreachable in this app twice over: no <Image> is rendered, and the native
+  # binding is never built (see allowBuilds above). Raised anyway so an audit reports what it means.
+  sharp: '>=0.35.0'
