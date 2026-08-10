@@ -103,9 +103,19 @@ export class NoSessionError extends Error {
  * queue we could not tell apart.
  */
 export class ApiUnreachableError extends Error {
-  constructor(cause: unknown, message = 'BuildCv.Api could not be reached.') {
+  /**
+   * The id this BFF sent upstream on the call that failed.
+   *
+   * IT IS THE ONLY THREAD LEFT when a call fails on this side. `relay` copies the API's
+   * `X-Correlation-ID` back on any answered request, but a call that was never answered has no
+   * response to copy from — and that is precisely the case where somebody needs to go looking.
+   */
+  readonly correlationId: string;
+
+  constructor(cause: unknown, correlationId: string, message = 'BuildCv.Api could not be reached.') {
     super(message, { cause });
     this.name = 'ApiUnreachableError';
+    this.correlationId = correlationId;
   }
 }
 
@@ -118,9 +128,17 @@ export class ApiUnreachableError extends Error {
  * connection was already handled; a connection that is accepted and then goes silent is the failure
  * that looks like nothing at all.
  *
- * 20s is chosen to be far longer than any call here legitimately takes and far shorter than "never".
- * If one endpoint ever needs more — document import is the plausible one, since the API parses the
- * file inside that request — give that call its own budget rather than raising this for everything.
+ * 20s is far longer than any call here legitimately takes and far shorter than "never". Measured on
+ * the API side at the documented ceilings, not guessed: `/resumes/import/propose` costs 4.1s for a
+ * 5 MiB document, `/job-offers/import` 2.7s for 100 requirements, `/scoring/score` 2.5s for 200
+ * skills against 100 requirements, and a CV filled to every limit — 200 skills, 50 experiences of 50
+ * bullets, ~2,900 items — reads in 0.4s. Nothing is within five times of this budget.
+ *
+ * The one to watch is `/import/propose`, and it is not the one guessed first: it is the only endpoint
+ * whose cost is set by a file SOMEBODY ELSE CHOSE, and it parses inside the request because the API
+ * has no background jobs. Read those numbers as a shape rather than a capacity — one request at a
+ * time, no contention. If an endpoint ever does need more, give that call its own budget rather than
+ * raising this for everything.
  */
 const API_TIMEOUT_MS = 20_000;
 
@@ -132,22 +150,45 @@ const API_TIMEOUT_MS = 20_000;
  * the subclass makes correct handling the default and the distinction an improvement on top.
  */
 export class ApiTimeoutError extends ApiUnreachableError {
-  constructor(cause: unknown) {
-    super(cause, `BuildCv.Api did not answer within ${API_TIMEOUT_MS / 1000}s.`);
+  constructor(cause: unknown, correlationId: string) {
+    super(cause, correlationId, `BuildCv.Api did not answer within ${API_TIMEOUT_MS / 1000}s.`);
     this.name = 'ApiTimeoutError';
   }
 }
 
-/** `fetch`, bounded in time, with a transport failure named rather than left as a bare TypeError. */
+/**
+ * `fetch`, bounded in time, carrying an id, with a transport failure named rather than left as a bare
+ * TypeError.
+ *
+ * THE ID IS SENT, NOT JUST READ BACK. `X-Correlation-ID` was only ever copied off the API's response
+ * here, which works for every request the API answers and leaves nothing at all for the ones it does
+ * not. A timeout is the case that hurts: the API *did* receive the call — it accepted the connection —
+ * so it has a log line for work this side gave up waiting on, and without a shared id there is no way
+ * to find it. The API honours an inbound id rather than minting its own, so sending one makes the two
+ * logs describe the same request in the same word.
+ */
 async function reach(url: string, init: RequestInit): Promise<Response> {
+  // The GLOBAL Web Crypto, not `node:crypto`. Importing `randomUUID` from `node:crypto` builds and
+  // ships fine — `pnpm build`, the container and every header check passed with it — and then breaks
+  // `next dev` outright: webpack refuses the `node:` scheme while compiling this module and the dev
+  // server never comes up. Found by the a11y suite, which is the only check here that starts one.
+  const correlationId = crypto.randomUUID();
+
+  // Built from `init.headers` rather than spread over it: Authorization and Content-Type are set by
+  // the callers, and a plain object spread would drop a `Headers` instance silently.
+  const headers = new Headers(init.headers);
+  headers.set('X-Correlation-ID', correlationId);
+
   try {
-    return await fetch(url, { ...init, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+    return await fetch(url, { ...init, headers, signal: AbortSignal.timeout(API_TIMEOUT_MS) });
   } catch (cause) {
     // `AbortSignal.timeout` rejects with a DOMException named TimeoutError. Matching on the name
     // rather than the class because DOMException identity is not something to depend on across
     // runtimes, and the fallback below is correct for anything unrecognised.
-    if (cause instanceof Error && cause.name === 'TimeoutError') throw new ApiTimeoutError(cause);
-    throw new ApiUnreachableError(cause);
+    if (cause instanceof Error && cause.name === 'TimeoutError') {
+      throw new ApiTimeoutError(cause, correlationId);
+    }
+    throw new ApiUnreachableError(cause, correlationId);
   }
 }
 

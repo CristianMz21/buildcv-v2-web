@@ -26,6 +26,31 @@ export function unreachable(error?: unknown): NextResponse {
 
   const status = timedOut ? 504 : 503;
 
+  const headers = new Headers({ 'content-type': 'application/problem+json' });
+
+  // The same header `relay` copies off an answered response, set here for one that never came. A
+  // client cannot tell the two apart and should not have to: `X-Correlation-ID` means the same thing
+  // on both, which is "quote this and someone can find your request".
+  if (error instanceof ApiUnreachableError) {
+    headers.set('x-correlation-id', error.correlationId);
+
+    // AN OUTAGE OTHERWISE LOGS NOTHING HERE. `onRequestError` fires for errors that escape a handler,
+    // and this one is caught and answered properly — so without this line the API holds a record of a
+    // request under an id, the browser is shown that id, and the server between them has said nothing
+    // at all. Same JSON shape and same sink as instrumentation.ts, and for the same reason: no
+    // headers, no bodies, nothing of the candidate's.
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        at: new Date().toISOString(),
+        name: error.name,
+        message: error.message,
+        correlationId: error.correlationId,
+        status,
+      }),
+    );
+  }
+
   return NextResponse.json(
     {
       status,
@@ -34,7 +59,7 @@ export function unreachable(error?: unknown): NextResponse {
         ? 'BuildCv took too long to answer and the request was given up on. This is not something you did — try again shortly.'
         : 'BuildCv is not answering right now. This is not something you did — try again shortly.',
     },
-    { status, headers: { 'content-type': 'application/problem+json' } },
+    { status, headers },
   );
 }
 
