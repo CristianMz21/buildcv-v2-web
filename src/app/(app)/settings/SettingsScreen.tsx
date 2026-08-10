@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 
 import { Warning } from '@/components/icons';
 import type { AccountResponse, ProblemDetails } from '@/lib/contracts';
-import { waitFor } from '@/lib/http';
+import { failureOf, messageOf, waitFor } from '@/lib/http';
 
 import styles from './settings.module.css';
 
@@ -69,7 +69,145 @@ export function SettingsScreen() {
       </div>
 
       <ChangePassword onDone={() => router.replace('/login')} />
+      <DeleteAccount onDone={() => router.replace('/login')} />
     </div>
+  );
+}
+
+/**
+ * Leaving, and taking everything with it.
+ *
+ * A CANDIDATE COULD DELETE ONE CV AND NOT THEMSELVES. This product holds employment history, phone
+ * numbers and addresses; "you can log out" is not the same offer as "you can leave", and a product
+ * that keeps a person's history after they ask it not to has made that decision for them.
+ *
+ * The password is asked for the same reason `change-password` asks: it is the one action on this
+ * screen that cannot be undone, and a session someone else is holding should not be enough to do it.
+ * The API shares one rate-limit budget across both, on purpose — a limiter of its own would let an
+ * attacker who exhausted one window keep guessing in the other.
+ *
+ * Typing the word is not theatre. A confirm dialog is dismissed by reflex; typing DELETE is the
+ * smallest thing that cannot be done by accident, and this is the only screen in the product where
+ * an accident is unrecoverable.
+ */
+function DeleteAccount({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const ready = password !== '' && confirmation.trim().toUpperCase() === 'DELETE';
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!ready) return;
+
+    setPending(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: password }),
+      });
+
+      if (!response.ok) {
+        // The 429 here is the account's own window, shared with the password change, so waiting it
+        // out actually works and the number has to be the API's rather than a guess.
+        setError(
+          response.status === 429
+            ? `Too many attempts on this account. ${waitFor(response)}`
+            : messageOf(await failureOf(response), 'The account could not be deleted.'),
+        );
+        return;
+      }
+
+      onDone();
+    } catch {
+      setError('Could not reach the server.');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className={`card ${styles.panel}`}>
+        <h2 className={styles.panelTitle}>Delete this account</h2>
+        <p className={styles.note}>
+          Every CV, every analysis and every readability report goes with it. There is no undo and no
+          copy kept.
+        </p>
+        <button type="button" className="btn" onClick={() => setOpen(true)}>
+          Delete this account
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form className={`card ${styles.panel}`} onSubmit={submit}>
+      <h2 className={styles.panelTitle}>Delete this account</h2>
+      <p className={styles.note}>
+        This cannot be undone. Download anything you want to keep first — every CV has a{' '}
+        <strong>Print or save as PDF</strong> on its own page.
+      </p>
+
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor="delete-password">
+          Your password
+        </label>
+        <input
+          id="delete-password"
+          className={styles.input}
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </div>
+
+      <div className={styles.field}>
+        <label className={styles.label} htmlFor="delete-confirmation">
+          Type DELETE to confirm
+        </label>
+        <input
+          id="delete-confirmation"
+          className={styles.input}
+          type="text"
+          autoComplete="off"
+          value={confirmation}
+          onChange={(event) => setConfirmation(event.target.value)}
+        />
+      </div>
+
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          type="button"
+          className="btn"
+          disabled={pending}
+          onClick={() => {
+            setOpen(false);
+            setPassword('');
+            setConfirmation('');
+            setError(null);
+          }}
+        >
+          Keep my account
+        </button>
+        <button type="submit" className="btn btnDanger" disabled={!ready || pending}>
+          {pending ? 'Deleting…' : 'Delete everything'}
+        </button>
+      </div>
+    </form>
   );
 }
 
