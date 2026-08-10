@@ -139,6 +139,11 @@ export class ApiUnreachableError extends Error {
  * has no background jobs. Read those numbers as a shape rather than a capacity — one request at a
  * time, no contention. If an endpoint ever does need more, give that call its own budget rather than
  * raising this for everything.
+ *
+ * RAISING THIS NUMBER IS A DEPLOYMENT CHANGE, not just a code one. The shutdown grace period has to
+ * outlast the longest request the app will wait on, and the common defaults do not: Docker gives 10s,
+ * so a request still running at that point is SIGKILLed and its caller gets a severed connection with
+ * no status at all. Measured — see the deployment section of the README, which carries both halves.
  */
 const API_TIMEOUT_MS = 20_000;
 

@@ -134,6 +134,29 @@ its shell, so a check on visible text would have passed.
 which is what makes `Cors:AllowedOrigins` and `Network:ForwardedHeaders` unnecessary for this path —
 if the API is ever exposed directly, both become required.
 
+### The shutdown grace period must exceed 20 seconds
+
+**Whatever runs this container has to give it at least 25s to stop, and almost nothing defaults to
+that.** Docker and Compose give 10s; Kubernetes gives 30s; App Service and friends vary. Set it
+explicitly — `stop_grace_period: 30s` in Compose, `terminationGracePeriodSeconds: 30` in a Pod spec.
+
+The number is not arbitrary. A call to the API may legitimately be in flight for up to
+`API_TIMEOUT_MS` (20s), and the shutdown has to outlast the longest request the app will wait on.
+Measured on this image, both directions:
+
+| In-flight request | `docker stop` | Container exit | What the caller got |
+|---|---|---|---|
+| Shorter than the grace period | 9.16s | **0** | a complete response |
+| Longer than the grace period | 10.42s | **137** — SIGKILL | **connection cut**, no status |
+
+So the good news is that the server drains: Next's standalone server handles `SIGTERM`, stops
+accepting, and finishes what it is holding. It is the *orchestrator's* deadline that severs the
+request, and it does it silently — a deploy under load quietly fails a slice of requests, and the only
+trace is a client-side error nobody on the server ever sees.
+
+There is no Dockerfile directive for this. It cannot be fixed in the image, which is exactly why it is
+written here rather than left for whoever is watching the graphs after a release.
+
 `BUILDCV_API_ORIGIN` is validated at server start via `src/instrumentation.ts`, not lazily on the
 first request. In production a missing value throws; there is no localhost fallback to silently
 succeed against.
