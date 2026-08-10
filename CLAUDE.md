@@ -106,6 +106,14 @@ The consequences that constrain new code:
   relay(await apiPost(...)))`. `relay` passes status, body and `content-type` through unchanged so the
   API's ProblemDetails — including the `errors` map keyed by field path — reaches the form that needs
   it. `Retry-After` and `X-Correlation-ID` are copied across; nothing else is.
+- **`X-Correlation-ID` is sent upstream, not only read back.** `reach()` mints one per call, so the
+  API — which honours an inbound id rather than minting its own — writes its log line under the same
+  word this side uses. It matters most exactly where copying fails: a call the API never answers has
+  no response to copy from, and a **timeout** is the case where the API *does* hold a record, because
+  it accepted the connection before going quiet. The id rides on `ApiUnreachableError`, comes back on
+  the 503/504 as the same header, and is written to stdout by `unreachable()` — `onRequestError` only
+  sees errors that escape a handler, and an outage is caught and answered, so without that line the
+  API and the browser would both hold an id the server between them never mentioned.
 - **Path segments that reach the API path must be gated against a closed list** (`isResumeSection` in
   `src/lib/sections.ts`). Without it the BFF is an open proxy for any future `/v1/resumes/{id}/…` route.
 
