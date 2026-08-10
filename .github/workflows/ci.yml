@@ -49,3 +49,24 @@ jobs:
       # src/lib/backend.ts, this step fails on the missing-origin throw — and that failure is the
       # point, not something to paper over with a placeholder value.
       - run: pnpm build
+
+  # The job above checks the SOURCE. This one checks the ARTIFACT, and they are not the same claim:
+  # `next build` proves the code compiles, and says nothing about whether the container starts,
+  # whether it refuses a deploy with no API origin, or whether the security headers survive into it.
+  # Two of those are production-only behaviour, so this is the only place they are provable at all —
+  # `next dev` cannot show them and the source cannot either.
+  #
+  # It needs no API and no credentials, which is why it belongs here while `test:e2e` does not.
+  image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Called directly rather than through `pnpm verify:image`: this job installs no Node and no
+      # dependencies, because the script needs neither — only docker and curl, both already on the
+      # runner. The package.json alias exists for humans.
+      #
+      # No argument, so it builds from this checkout. Passing a tag would make it verify a
+      # pre-existing image, which is what a deploy pipeline wants and what CI must not do.
+      - run: ./scripts/verify-image.sh

@@ -18,7 +18,19 @@ pnpm test:e2e             # Playwright — needs a REAL BuildCv.Api running
 pnpm gen:api              # refetch openapi.json and regenerate src/lib/api-schema.d.ts
 pnpm gen:api:check        # contract drift: needs a live API
 pnpm gen:types:check      # regenerate from the COMMITTED openapi.json — needs nothing, runs in CI
+pnpm verify:image         # build the container and assert how it behaves — needs docker, runs in CI
 ```
+
+`verify:image` is the only check that runs against the **artifact** rather than the source. Two of the
+things it asserts are production-only and therefore invisible to every other check and to `next dev`:
+that a deploy with no `BUILDCV_API_ORIGIN` refuses to serve and names the variable, and that HSTS and
+a CSP without `'unsafe-eval'` survive into the image. It also pins the liveness probe by pointing the
+container at an origin that does not resolve — `/api/health` must still answer 200, because a probe
+that needed the API would restart the whole fleet the moment the API hiccuped.
+
+With no argument it **always rebuilds**; pass a tag to verify a pre-existing image instead. That is
+not a convenience — the first version reused an existing tag, and its first run reported HSTS missing
+from an image that predated the commit adding it by twenty-one minutes.
 
 Run one e2e test / one step:
 
@@ -170,9 +182,12 @@ running it, or decide knowingly to keep them.
 
 ## Guardrails
 
-- **`.github/workflows/ci.yml`** runs lint, typecheck, `gen:types:check` and build on every push and
-  pull request. It stops there deliberately: `test:e2e` and `gen:api:check` both need a running
-  `BuildCv.Api` from another repository, and a job that mocked one would assert nothing.
+- **`.github/workflows/ci.yml`** runs two jobs. `checks` runs lint, typecheck, `gen:types:check` and
+  build; `image` builds the container and runs `scripts/verify-image.sh` against it. It stops there
+  deliberately: `test:e2e` and `gen:api:check` both need a running `BuildCv.Api` from another
+  repository, and a job that mocked one would assert nothing. The `image` job needs no API and no
+  credentials, which is why it belongs here — and it is the only job that can fail on a property of
+  the thing that actually ships.
 - **`.claude/settings.json`** denies `Edit`/`Write` on `src/lib/api-schema.d.ts` and `openapi.json`.
   Three places say those files are generated and nothing enforced it; a type widened by hand to make
   `tsc` agree with a screen is exactly the edit that gets reverted by the next `gen:api`. The
