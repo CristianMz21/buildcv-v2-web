@@ -37,8 +37,20 @@ const MAX_BYTES = 5 * 1024 * 1024;
 /** Where a corrected draft survives a reload. Session-scoped on purpose — see `remember`. */
 const DRAFT_KEY = 'buildcv.import.draft';
 
-/** Anything the extractor did not call High. The mark is a nudge to read, not a claim of wrongness. */
-const isUnsure = (confidence: string) => confidence !== 'High';
+/**
+ * What a confidence value asks of the candidate — and it is not the same question in every case.
+ *
+ * One badge for everything the extractor did not call `High` conflated two opposite things. The
+ * API's own enum says so: `NotExtracted` is "the honest empty… the review screen should show it as
+ * 'please fill in' — NOT as a failure", while `Low` is a positional guess that is "wrong more often
+ * than right on the hard 35%". Telling a candidate to double-check a field the parser deliberately
+ * declined to invent teaches them to distrust the marks, and then they stop reading the ones that
+ * matter.
+ */
+type Asks = 'add' | 'check' | null;
+
+const asksFor = (confidence: string): Asks =>
+  confidence === 'High' ? null : confidence === 'NotExtracted' ? 'add' : 'check';
 
 export function ImportScreen() {
   const router = useRouter();
@@ -333,7 +345,10 @@ export function ImportScreen() {
             : String(value);
 
     const invalid = Boolean(errors?.length);
-    const unsure = !invalid && mark && isUnsure(mark.confidence);
+    const asks = invalid || !mark ? null : asksFor(mark.confidence);
+    // Only a guess gets the amber input. An empty field the parser never claimed to fill is not a
+    // problem with the field, and colouring it as one makes the form read as forty mistakes.
+    const unsure = asks === 'check';
     const className = `${field.kind === 'text' || !field.kind ? styles.input : styles.textarea} ${
       invalid ? styles.inputInvalid : unsure ? styles.inputUnsure : ''
     }`;
@@ -345,7 +360,8 @@ export function ImportScreen() {
       >
         <label className={styles.label} htmlFor={pathKey}>
           {field.label}
-          {unsure && <span className={styles.flag}>CHECK</span>}
+          {asks === 'check' && <span className={styles.flag}>CHECK</span>}
+          {asks === 'add' && <span className={styles.flagAdd}>ADD</span>}
         </label>
 
         {field.kind === 'long' || field.kind === 'lines' ? (
@@ -384,8 +400,9 @@ export function ImportScreen() {
       <div className={styles.head}>
         <h1 className={styles.title}>Check what was read</h1>
         <p className={styles.lead}>
-          Nothing has been created yet. Extraction is best-effort — the fields marked{' '}
-          <span className={styles.flag}>CHECK</span> are the ones it was least sure of.
+          Nothing has been created yet. Extraction is best-effort:{' '}
+          <span className={styles.flag}>CHECK</span> is a value it guessed and you should read,{' '}
+          <span className={styles.flagAdd}>ADD</span> is one it found nothing for and left to you.
         </p>
       </div>
 
