@@ -5,7 +5,7 @@ import { isComplete, OPERATOR } from '../details';
 import styles from '../legal.module.css';
 import { Unset } from '../Unset';
 
-export const metadata: Metadata = { title: 'Privacy · BuildCv' };
+export const metadata: Metadata = { title: 'Privacy' };
 
 /**
  * What this product does with a candidate's data, written from the code rather than from a template.

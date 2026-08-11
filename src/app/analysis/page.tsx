@@ -7,7 +7,7 @@ import { AnalysisFlow } from './AnalysisFlow';
 
 // Every other signed-in screen names itself in the tab; this one is the longest-lived of them, since
 // a candidate leaves it open while reading the posting in another tab.
-export const metadata: Metadata = { title: 'New analysis · BuildCv' };
+export const metadata: Metadata = { title: 'New analysis' };
 
 /**
  * The gate only — every read of BuildCv.Api happens through a route handler, never here.

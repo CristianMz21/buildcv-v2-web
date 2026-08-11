@@ -200,5 +200,59 @@ else
   pass "no third-party edge detected in the response (server: ${edge:-none})"
 fi
 
+# ── 7. The product can be found and can be shared ─────────────────────────────
+#
+# THESE ARE THE ONLY ASSERTIONS HERE THAT ARE ABOUT REACHING PEOPLE RATHER THAN PROTECTING THEM, and
+# they are here because nothing else can make them. robots.txt and sitemap.xml are generated routes:
+# `next build` lists them whether or not they answer anything useful, and no test in this repo opens
+# either. The unfurl tags matter for the same reason — the copy already exists on the page, and the
+# only way to know a crawler can see it is to read what the server actually sent.
+#
+# The canonical origin is asserted rather than the current host: a sitemap that advertises the
+# Container Apps hostname would point every crawler at an address that answers 403.
+# The origin the product publishes itself under, which is NOT necessarily the one being measured.
+# `SITE_ORIGIN` in src/lib/site.ts is the single source of that answer; it is read from there rather
+# than repeated, because a check that carries its own copy of a constant is how the password minimum
+# came to be wrong in three places at once.
+CANONICAL=$(rg -o "https://[a-z0-9.-]+" src/lib/site.ts | head -1)
+[ -n "$CANONICAL" ] || fail "could not read the canonical origin out of src/lib/site.ts"
+
+echo "Discovery:"
+
+robots=$(curl -s -m 30 "$URL/robots.txt" 2>/dev/null)
+if printf '%s' "$robots" | rg -q 'Disallow: /reset-password'; then
+  pass "robots.txt keeps crawlers off the token-bearing reset URL"
+else
+  fail "robots.txt does not disallow /reset-password — a reset token could be indexed"
+fi
+
+if printf '%s' "$robots" | rg -q "Sitemap: $CANONICAL/sitemap.xml"; then
+  pass "robots.txt points at the canonical sitemap"
+else
+  fail "robots.txt advertises a sitemap that is not $CANONICAL/sitemap.xml"
+fi
+
+sitemap=$(curl -s -m 30 "$URL/sitemap.xml" 2>/dev/null)
+if printf '%s' "$sitemap" | rg -q "<loc>$CANONICAL</loc>"; then
+  pass "sitemap.xml lists the canonical landing page"
+else
+  fail "sitemap.xml does not list $CANONICAL"
+fi
+
+# Read from the landing page rather than from /login: it is the page anyone would actually share, and
+# it is the one whose title the root layout's template does NOT reach — a bug that shipped once.
+landing=$(curl -s -m 30 "$URL/" 2>/dev/null)
+if printf '%s' "$landing" | rg -q 'property="og:title"'; then
+  pass "a shared link unfurls with a title and description"
+else
+  fail "the landing page carries no og:title — a shared link unfurls as a bare URL"
+fi
+
+if printf '%s' "$landing" | rg -q '<title>[^<]*BuildCv[^<]*</title>'; then
+  pass "the landing title carries the product name"
+else
+  fail "the landing page title does not name the product"
+fi
+
 echo
 echo "The deployment is what it claims to be."

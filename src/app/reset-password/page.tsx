@@ -3,7 +3,16 @@ import type { Metadata } from 'next';
 import { ResetPasswordForm } from './ResetPasswordForm';
 import styles from '../login/login.module.css';
 
-export const metadata: Metadata = { title: 'Set a new password · BuildCv' };
+/*
+ * `noindex`, and this is the page that most needs it. It is reached from an emailed link carrying a
+ * reset token in the query string, and a crawler that followed one would put a live credential into
+ * a search index. `robots.ts` disallows the path as well; both, because a disallow is a request and
+ * a meta robots tag is on the page itself.
+ */
+export const metadata: Metadata = {
+  title: 'Set a new password',
+  robots: { index: false, follow: false },
+};
 
 /**
  * Reached from an emailed link and from nowhere else, so it gates on nothing: the token in the URL
