@@ -220,5 +220,35 @@ privacy=$(curl -s -m 10 "http://localhost:$PORT/legal/privacy" | tr '[:upper:]' 
   || fail "Google is not configured and the privacy page names it — describing a third party that is not there"
 pass "unconfigured: the privacy page does not name Google"
 
+cleanup
+
+# ── 5. A deployment-time value must be answerable at deployment time ──────────
+#
+# `robots.txt` and `sitemap.xml` quote `SITE_ORIGIN`, and both were prerendered — so the origin was
+# baked into the image and a container told otherwise ignored it SILENTLY. Measured before the fix:
+# started with the override set, robots.txt kept advertising the production domain.
+#
+# It could not have worked under the old name either: Next replaces every `process.env.NEXT_PUBLIC_*`
+# reference with a literal at build time, in the server bundle too, so that name was never capable of
+# being a runtime override. Two causes, one symptom, and neither visible outside a built artifact.
+#
+# A preview deployment publishing production URLs in its own sitemap is the harm; that no preview
+# exists today is why this is a check rather than an incident.
+echo "Deployment-time origin:"
+docker run -d --name "$NAME" -p "$PORT:3000" \
+  -e BUILDCV_API_ORIGIN=http://buildcv-api-that-does-not-resolve:8080 \
+  -e BUILDCV_SITE_ORIGIN=https://verify-image.example.test "$IMAGE" > /dev/null
+settle
+
+robots=$(curl -s -m 10 "http://localhost:$PORT/robots.txt")
+[[ $robots == *"https://verify-image.example.test/sitemap.xml"* ]] \
+  || fail "robots.txt ignored BUILDCV_SITE_ORIGIN — the origin is baked into the image"
+pass "robots.txt honours the origin it is deployed with"
+
+sitemap=$(curl -s -m 10 "http://localhost:$PORT/sitemap.xml")
+[[ $sitemap == *"<loc>https://verify-image.example.test</loc>"* ]] \
+  || fail "sitemap.xml ignored BUILDCV_SITE_ORIGIN — the origin is baked into the image"
+pass "sitemap.xml honours the origin it is deployed with"
+
 echo
 echo "The image is deployable."
