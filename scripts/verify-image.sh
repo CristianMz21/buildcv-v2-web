@@ -143,5 +143,52 @@ pass "CSP carries no 'unsafe-eval'"
 [[ $headers != *"x-powered-by:"* ]] || fail "X-Powered-By is present"
 pass "no X-Powered-By"
 
+cleanup
+
+# ── 6. The Google disclosure follows the Google button, IN THE BUILT IMAGE ────
+#
+# THIS SECTION EXISTS BECAUSE THE GATE IT CHECKS WAS ALREADY BROKEN ONCE, IN PRODUCTION, WHILE EVERY
+# OTHER CHECK WAS GREEN. The sign-in screens and the privacy page read one predicate — whether Google
+# is configured — so they were supposed to be incapable of disagreeing. In the built artifact they
+# read it at DIFFERENT TIMES: `/login` is dynamic and answers per request, `/legal/privacy` was
+# statically prerendered and answered at `next build`, inside `docker build`, where no secret exists.
+# The page was therefore baked as "one third party" and served with `s-maxage=31536000` — so enabling
+# Google would have left the published privacy page silent about it FOR A YEAR.
+#
+# It was verified against `next dev`, where every page is dynamic and the two agreed. Only the image
+# disagrees, which is why the check belongs here and nowhere else.
+echo "Third-party disclosure:"
+docker run -d --name "$NAME" -p "$PORT:3000" \
+  -e BUILDCV_API_ORIGIN=http://buildcv-api-that-does-not-resolve:8080 \
+  -e GOOGLE_CLIENT_ID=verify-image-client-id \
+  -e GOOGLE_CLIENT_SECRET=verify-image-secret "$IMAGE" > /dev/null
+settle
+
+offered=$(curl -s -m 10 "http://localhost:$PORT/login" | rg -c 'Continue with Google' || true)
+[ "${offered:-0}" -gt 0 ] || fail "Google is configured and the sign-in screen does not offer it"
+pass "configured: the sign-in screen offers Google"
+
+# The assertion the production defect would have failed. A prerendered page answers the same way
+# whatever the container is told, so this passes only if the page is rendered per request.
+curl -s -m 10 "http://localhost:$PORT/legal/privacy" | rg -qi 'google' \
+  || fail "Google sign-in is offered and the privacy page does not name Google — the published promise is false"
+pass "configured: the privacy page names Google"
+
+cleanup
+
+# And the other direction, because a page that ALWAYS names Google would pass the check above while
+# describing a third party this deployment does not use.
+docker run -d --name "$NAME" -p "$PORT:3000" \
+  -e BUILDCV_API_ORIGIN=http://buildcv-api-that-does-not-resolve:8080 "$IMAGE" > /dev/null
+settle
+
+silent=$(curl -s -m 10 "http://localhost:$PORT/login" | rg -c 'Continue with Google' || true)
+[ "${silent:-0}" -eq 0 ] || fail "Google is not configured and the sign-in screen offers it anyway"
+pass "unconfigured: the sign-in screen offers no Google"
+
+curl -s -m 10 "http://localhost:$PORT/legal/privacy" | rg -qi 'google' \
+  && fail "Google is not configured and the privacy page names it — describing a third party that is not there" \
+  || pass "unconfigured: the privacy page does not name Google"
+
 echo
 echo "The image is deployable."

@@ -10,6 +10,26 @@ import { Unset } from '../Unset';
 export const metadata: Metadata = { title: 'Privacy' };
 
 /**
+ * RENDERED PER REQUEST, and the static version of this page was a live defect.
+ *
+ * This page names the third parties in the path, and one of them — Google sign-in — is decided by
+ * runtime configuration. A statically prerendered page answers that question at BUILD time, where no
+ * secret is ever set: `next build` runs inside `docker build` with no `GOOGLE_CLIENT_ID`, so the page
+ * would be baked as "one company" and served with `s-maxage=31536000`. **Turning Google on would then
+ * have left the privacy page silent about it for a year.**
+ *
+ * That is exactly the failure the shared predicate was supposed to make impossible, and it survived
+ * because the check was run against `next dev`, where every page is dynamic and the two agreed. The
+ * built artifact disagreed — the manifest says `○ /legal/privacy` and `ƒ /login`, two different
+ * clocks reading the same question. `verify-image.sh` now runs the container with and without the
+ * variable, because it is the only check that can see this at all.
+ *
+ * The cost is a per-request render of a page of static prose, which is nothing. A legal page that can
+ * be wrong for a year is not worth caching for a year.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * What this product does with a candidate's data, written from the code rather than from a template.
  *
  * EVERY CLAIM BELOW IS CHECKABLE and was checked. The document not being stored, the two cookies, the
