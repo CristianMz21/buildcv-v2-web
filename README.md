@@ -1,5 +1,7 @@
 # BuildCv web
 
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CristianMz21/buildcv-v2-web?label=CodeRabbit+Reviews&labelColor=171717&color=FF570A)](https://coderabbit.ai)
+
 **License: [Elastic License 2.0](LICENSE) — source-available, not OSI open source.** The code is public
 and readable, but no one may offer it as a hosted or managed service where third parties get access to
 a substantial set of its features. See the LICENSE file for the exact terms.
