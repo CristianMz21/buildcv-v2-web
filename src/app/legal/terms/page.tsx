@@ -98,6 +98,36 @@ export default function TermsPage() {
       </section>
 
       <section className={styles.section}>
+        <h2 className={styles.heading}>How old you have to be</h2>
+        <p className={styles.body}>
+          <strong>Sixteen.</strong> This service is for people looking for work and is not built for
+          children: a CV is a detailed record of where somebody studies, lives and can be reached, and
+          holding that about a child carries duties this product does not implement.
+        </p>
+        <p className={styles.body}>
+          If you are younger and have an account, write to{' '}
+          {OPERATOR.contact ?? <Unset what="contact address" />} and it will be deleted. We do not ask
+          for your age, so we will not catch it &mdash; saying we verify it would be the false claim
+          here, and the honest one is that we act when told.
+        </p>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.heading}>What these terms cannot take from you</h2>
+        <p className={styles.body}>
+          Consumer law follows you home. Whatever governing law is named below, it does not remove
+          rights the law where <em>you</em> live gives you and does not let you sign away &mdash; the
+          Estatuto del Consumidor in Colombia, consumer directives in the European Union, state
+          consumer statutes in the United States.
+        </p>
+        <p className={styles.body}>
+          It is written here because a governing-law clause reads to most people as though it settles
+          the question. It does not, and a term that quietly implies otherwise would be the kind of
+          thing this product is supposed to be the opposite of.
+        </p>
+      </section>
+
+      <section className={styles.section}>
         <h2 className={styles.heading}>Law</h2>
         <p className={styles.body}>
           These terms are governed by the law of{' '}

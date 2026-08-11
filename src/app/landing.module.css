@@ -1,0 +1,257 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 700 15px var(--font);
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+
+.mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 13px var(--font);
+}
+
+.barLinks {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 56px 24px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.title {
+  margin: 0;
+  font: 700 34px/1.15 var(--font);
+  letter-spacing: -0.03em;
+  color: var(--fg);
+  max-width: 20ch;
+}
+
+.lead {
+  margin: 0;
+  font: 400 16px/1.65 var(--font);
+  color: var(--fg-body);
+  max-width: 64ch;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font: 700 19px var(--font);
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+
+.sectionBody {
+  margin: 0;
+  font: 400 14.5px/1.7 var(--font);
+  color: var(--fg-body);
+  max-width: 68ch;
+}
+
+.panel {
+  padding: 20px 22px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 400 13.5px var(--font);
+}
+
+.table caption {
+  text-align: left;
+  padding-bottom: 12px;
+  font: 400 12.5px/1.6 var(--font);
+  color: var(--fg-faint);
+}
+
+.table th,
+.table td {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+}
+
+.table tbody tr:last-child th,
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table thead th {
+  font: 600 11.5px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.table tbody th {
+  font: 500 13.5px var(--font);
+  color: var(--fg);
+}
+
+.num {
+  width: 84px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The fill is a graphic, so it takes the vivid token. A word in this table would owe 4.5:1 and take
+   the -fg one instead; see the contrast rule in CLAUDE.md. */
+.weightBar {
+  display: block;
+  height: 6px;
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--primary);
+}
+
+.weightCell {
+  width: 45%;
+  padding-right: 0;
+}
+
+.bands {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.band {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.bandName {
+  display: block;
+  font: 600 13px var(--font);
+  color: var(--fg);
+}
+
+.bandRange {
+  display: block;
+  margin-top: 3px;
+  font: 400 12px var(--font-mono);
+  color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.pairTitle {
+  margin: 0 0 6px;
+  font: 600 14px var(--font);
+  color: var(--fg);
+}
+
+.pairBody {
+  margin: 0;
+  font: 400 13.5px/1.65 var(--font);
+  color: var(--fg-body);
+}
+
+.list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font: 400 13.5px/1.6 var(--font);
+  color: var(--fg-body);
+}
+
+.foot {
+  border-top: 1px solid var(--border);
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  justify-content: center;
+  font: 400 12.5px var(--font);
+  color: var(--fg-faint);
+}
+
+/* Every link on this page owes a visible focus ring. The a11y suite walks `main` and asserts one on
+   each control, and a link inheriting only the UA default would pass axe and fail a keyboard user. */
+.page a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (max-width: 560px) {
+  .title {
+    font-size: 27px;
+  }
+
+  .main {
+    padding: 40px 20px 56px;
+    gap: 44px;
+  }
+
+  .num {
+    width: 64px;
+  }
+}
