@@ -658,6 +658,32 @@
   border: 1px solid var(--bad-border);
 }
 
+/*
+ * The id this failure was logged under, for a message to support.
+ *
+ * SECONDARY BY TYPOGRAPHY AND POSITION, NOT BY CONTRAST. The obvious way to make a reference number
+ * recede is to fade it, and --bad-fg on --bad-bg is 7.60:1 — fading it is how a line lands under the
+ * 4.5:1 a word owes while still looking deliberate. It stays the notice's own colour and recedes by
+ * being smaller, monospace, and on its own line under a rule.
+ */
+.reference {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bad-border);
+  font: 400 11.5px var(--font);
+  color: var(--bad-fg);
+}
+
+/* The id itself, and the reason this block exists at all: it is here to be copied into a message.
+   `user-select: all` makes one click take the whole thing — asking somebody to transcribe a UUID by
+   hand is asking them not to bother, and then the id may as well not have been shown. */
+.reference code {
+  user-select: all;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+}
+
 .notice svg {
   flex-shrink: 0;
   margin-top: 2px;

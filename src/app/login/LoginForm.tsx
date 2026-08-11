@@ -16,12 +16,26 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Shown only when the server is the thing that failed — a 5xx — and never on a rejected password.
+   *
+   * THIS IS THE SCREEN WHERE AN OUTAGE IS FELT FIRST. If the API is unreachable nobody can sign in at
+   * all, so this is where a person gives up or writes to support, and the id is what makes that
+   * message answerable. `reach()` already minted it and sent it upstream, the API logged under the
+   * same word, and `relay` puts it on the response; until now the browser dropped it.
+   *
+   * Withheld on 4xx deliberately. "Sign-in failed" with a reference number reads like a system fault
+   * for what is usually a wrong password, and it hands out an id for a request nobody needs to look
+   * up. A rate-limit 429 already says exactly what to do and how long to wait.
+   */
+  const [reference, setReference] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
     setError(null);
+    setReference(null);
 
     try {
       const response = await fetch('/api/auth/login', {
@@ -42,6 +56,8 @@ export function LoginForm() {
             ? `Too many attempts. ${waitFor(response)}`
             : (problem.detail ?? 'Sign-in failed.'),
         );
+
+        if (response.status >= 500) setReference(response.headers.get('x-correlation-id'));
         return;
       }
 
@@ -61,6 +77,11 @@ export function LoginForm() {
       {error && (
         <p className={styles.error} role="alert">
           {error}
+          {reference && (
+            <span className={styles.reference}>
+              Reference <code>{reference}</code>
+            </span>
+          )}
         </p>
       )}
 

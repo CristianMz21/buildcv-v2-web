@@ -93,6 +93,29 @@
   gap: 12px;
 }
 
+/*
+ * The id a server failure was logged under. Same tone as the message around it — --bad-fg on
+ * --bad-bg is 7.60:1, and the tempting way to make a reference number recede is to fade it, which is
+ * exactly how a line lands under the 4.5:1 a word owes while still looking deliberate. It recedes by
+ * being smaller and set apart, not by being harder to read.
+ *
+ * `user-select: all` on the id is the point of showing it: it exists to be copied into a message,
+ * and asking somebody to transcribe a UUID by hand is asking them not to bother.
+ */
+.reference {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--bad-border);
+  font-size: 11.5px;
+}
+
+.reference code {
+  user-select: all;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+}
+
 /* Sits opposite the label — "Forgot password?" on sign-in. Small, but not smaller than the 12px
    floor this file uses elsewhere, and it takes --accent rather than a muted tone because it is a
    link somebody is looking for at their least patient moment. */
