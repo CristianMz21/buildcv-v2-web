@@ -105,6 +105,71 @@ export default function PrivacyPage() {
       </section>
 
       <section className={styles.section}>
+        <h2 className={styles.heading}>Where your data physically is</h2>
+        <p className={styles.body}>
+          <strong>In the United States.</strong> The application runs in Microsoft Azure&rsquo;s
+          <em> East US</em> region and the database is in <em>Central US</em>. Database backups are
+          geo-redundant, which means Azure keeps a second copy in another United States region.
+          Cloudflare&rsquo;s network is global, so a request may be routed through equipment near you
+          before it reaches the United States.
+        </p>
+        <p className={styles.body}>
+          <strong>If you are not in the United States, using this service transfers your data there.</strong>{' '}
+          That includes your CV. United States law does not give the same protections as Colombian or
+          European law, and no arrangement here changes that &mdash; you are being told so you can
+          decide, which is the only honest thing this page can do about it.
+        </p>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.heading}>Why we are allowed to hold it</h2>
+        <p className={styles.body}>
+          Because you asked us to. Everything stored is something you typed or uploaded so the product
+          could do the one thing it does, and creating an account is the authorisation &mdash; freely
+          given, for this stated purpose and no other.
+        </p>
+        <p className={styles.body}>
+          There is no other purpose. Your data is not used for advertising, not profiled beyond the
+          score you asked for, and not shared. If that ever changes it needs your permission again,
+          not a quiet edit to this page.
+        </p>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.heading}>What you can demand, and how</h2>
+        <p className={styles.body}>
+          Wherever you are, you can ask us to <strong>show you</strong> everything we hold,{' '}
+          <strong>correct</strong> anything wrong, <strong>delete</strong> all of it,{' '}
+          <strong>hand it to you</strong> in a portable form, or <strong>withdraw</strong> the
+          permission you gave &mdash; and be told what we did about it. Write to{' '}
+          {OPERATOR.contact ?? <Unset what="contact address" />}.
+        </p>
+        <p className={styles.body}>
+          Two of those you do not need to ask for at all. <Link href="/settings">Settings</Link>{' '}
+          deletes your account and everything in it immediately, and every CV can be exported as a PDF
+          from its own page. A right you have to request is weaker than a button, so where a button was
+          possible it is what you get.
+        </p>
+        <ul className={styles.list}>
+          <li>
+            <strong>Colombia.</strong> These are the rights Ley 1581 de 2012 gives you &mdash; conocer,
+            actualizar, rectificar y suprimir &mdash; along with the right to a copy of the
+            authorisation you gave and to be told how your data has been used.
+          </li>
+          <li>
+            <strong>European Union and United Kingdom.</strong> The same list is your GDPR rights of
+            access, rectification, erasure, portability, restriction and objection.
+          </li>
+          <li>
+            <strong>California and other United States states.</strong> The same list again, plus the
+            right not to be treated differently for using it. There is no &ldquo;do not sell&rdquo;
+            link because <strong>nothing is ever sold or shared for advertising</strong>, which is a
+            property of the product rather than a setting.
+          </li>
+        </ul>
+      </section>
+
+      <section className={styles.section}>
         <h2 className={styles.heading}>Cookies</h2>
         <p className={styles.body}>
           Two are ours, both strictly necessary to keep you signed in. They are set by this site,
@@ -145,11 +210,29 @@ export default function PrivacyPage() {
       </section>
 
       <section className={styles.section}>
-        <h2 className={styles.heading}>Law and complaints</h2>
+        <h2 className={styles.heading}>Law, and who to complain to above us</h2>
         <p className={styles.body}>
           This service is operated under the law of{' '}
-          {OPERATOR.jurisdiction ?? <Unset what="governing jurisdiction" />}, and that is where a
-          complaint about how your data is handled would be heard.
+          {OPERATOR.jurisdiction ?? <Unset what="governing jurisdiction" />}. Ask us first &mdash; we
+          would rather fix it than be reported &mdash; but you are never required to, and none of the
+          following depends on our agreement.
+        </p>
+        <ul className={styles.list}>
+          <li>
+            <strong>Colombia.</strong> The Superintendencia de Industria y Comercio takes complaints
+            about personal data directly, and can order us to act.
+          </li>
+          <li>
+            <strong>European Union and United Kingdom.</strong> The data protection authority of the
+            country you live in, whichever that is.
+          </li>
+          <li>
+            <strong>United States.</strong> Your state Attorney General, and in California the
+            Privacy Protection Agency.
+          </li>
+        </ul>
+        <p className={styles.body}>
+          Which of those applies is decided by where <em>you</em> are, not by where we are.
         </p>
       </section>
 
