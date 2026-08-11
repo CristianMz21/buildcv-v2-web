@@ -30,6 +30,19 @@ const PUBLIC_SCREENS = [
   { name: 'register', path: '/register' },
   { name: 'forgot password', path: '/forgot-password' },
   { name: 'reset password', path: '/reset-password?token=never-issued' },
+  /*
+   * THE SIGN-IN SCREEN'S THREE NOTICES, each of which exists only with a query parameter — so the
+   * scan of bare `/login` above has never seen any of them. That is this file's own recurring
+   * failure: seven axe scans once passed on a strength meter that renders only once a field has a
+   * value, and reported a clean sheet on something that was not in the DOM.
+   *
+   * All three are coloured panels carrying text, which is precisely where contrast fails. The
+   * deletion notice is the one most worth scanning — it is the last thing somebody sees of this
+   * product, and it takes the green tone rather than the red one on purpose.
+   */
+  { name: 'sign in with a failure', path: '/login?error=rejected' },
+  { name: 'sign in with a reference', path: '/login?error=unreachable&ref=449664dd-21f7-4280-84e3-f9875cbc4896' },
+  { name: 'sign in after deleting an account', path: '/login?deleted=1' },
   { name: 'privacy', path: '/legal/privacy' },
   { name: 'terms', path: '/legal/terms' },
 ] as const;
