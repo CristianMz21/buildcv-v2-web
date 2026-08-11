@@ -101,6 +101,28 @@ export type ResumeSummaryResponse = Schemas['ResumeSummaryResponse'];
 export type ResumeSectionCounts = Schemas['ResumeSectionCounts'];
 export type RenameResumeRequest = Schemas['RenameResumeRequest'];
 
+/**
+ * The password rule the API enforces, in one place because three screens each carried their own and
+ * ALL THREE WERE WRONG.
+ *
+ * `PasswordPolicy.MinLength` in `buildcv-v2` is **12**. Register and Settings both said "8 characters
+ * or more" and Register enabled its submit button at 8; the reset screen stated nothing at all. So a
+ * person typed eight characters, was told that was enough, pressed a button the form had enabled for
+ * them — and the API refused it. That refusal spends one of the five requests a minute the auth
+ * window allows, on a screen where somebody is trying to create their first account.
+ *
+ * The maximum is real too and was mentioned nowhere: 128, which bounds hashing cost. A long
+ * passphrase is a good password and being refused one without being told why is worse than the
+ * limit itself.
+ *
+ * OpenAPI cannot carry this — the schemas declare `password` as a bare string and the rule lives in
+ * a domain validator — which is exactly the kind of meaning this file exists to hold. It is not
+ * enforcement: the server remains the authority. It only saves a round trip and stops a form from
+ * promising something the server will refuse.
+ */
+export const MIN_PASSWORD_LENGTH = 12;
+export const MAX_PASSWORD_LENGTH = 128;
+
 /** The ten collections, and the URL segment each is addressed by. */
 export const RESUME_SECTIONS = [
   'experiences',

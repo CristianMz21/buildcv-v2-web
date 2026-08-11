@@ -4,7 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { Warning } from '@/components/icons';
-import type { AccountResponse, ProblemDetails } from '@/lib/contracts';
+import {
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  type AccountResponse,
+  type ProblemDetails,
+} from '@/lib/contracts';
 import { failureOf, messageOf, waitFor } from '@/lib/http';
 
 import styles from './settings.module.css';
@@ -224,7 +229,10 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const ready = current !== '' && next.length >= 8;
+  // The server's rule, imported. This said 8 while `PasswordPolicy.MinLength` said 12, so the
+  // button enabled itself for a password the API would refuse — and changing a password signs you
+  // out, which makes a wasted attempt here more annoying than most.
+  const ready = current !== '' && next.length >= MIN_PASSWORD_LENGTH;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -301,10 +309,12 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
           className={styles.input}
           type="password"
           autoComplete="new-password"
+          minLength={MIN_PASSWORD_LENGTH}
+          maxLength={MAX_PASSWORD_LENGTH}
           value={next}
           onChange={(event) => setNext(event.target.value)}
         />
-        <span className={styles.note}>8 characters or more.</span>
+        <span className={styles.note}>{MIN_PASSWORD_LENGTH} characters or more.</span>
       </div>
 
       <button type="submit" className="btn btnPrimary" disabled={!ready || pending}>

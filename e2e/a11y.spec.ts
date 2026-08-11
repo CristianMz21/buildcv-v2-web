@@ -82,11 +82,16 @@ for (const screen of PUBLIC_SCREENS) {
  * password, that the label names it, and that the page stays clean with the meter in the DOM. The
  * fills are measured by the test below instead, for the same reason the focus ring is: axe cannot.
  */
+/*
+ * Recalibrated when the server's real minimum turned out to be 12 rather than 8. The old set started
+ * at an eight-character password, which now scores zero — it is below the floor entirely — and the
+ * "Weak" case would have lit no bars at all while the test expected one.
+ */
 const STRENGTHS = [
-  { label: 'Weak', password: 'aaaaaaaa' }, // 8 chars, letters only
-  { label: 'Fair', password: 'aaaaaaaa1' }, // + a digit beside letters
-  { label: 'Good', password: 'aaaaaaaaaaaa1' }, // + past twelve
-  { label: 'Strong', password: 'aaaaaaaaaaaa1!' }, // + a symbol
+  { label: 'Weak', password: 'aaaaaaaaaaaa' }, // exactly the minimum, letters only
+  { label: 'Fair', password: 'aaaaaaaaaaa1' }, // + a digit beside letters
+  { label: 'Good', password: 'aaaaaaaaaaaaaaa1' }, // + four past the minimum
+  { label: 'Strong', password: 'aaaaaaaaaaaaaaa1!' }, // + a symbol
 ] as const;
 
 for (const strength of STRENGTHS) {

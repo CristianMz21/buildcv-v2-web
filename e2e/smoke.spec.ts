@@ -45,7 +45,11 @@ test('a candidate can register, import a CV, edit it and read its scores', async
   await test.step('register, and land somewhere with something to do', async () => {
     await page.goto('/register');
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(PASSWORD);
+    // `exact: true`, and it is load-bearing. The password field now carries a reveal button whose
+    // aria-label is "Show password", and getByLabel matches by substring and case-insensitively — so
+    // the loose selector answers with TWO elements and Playwright refuses in strict mode. Measured:
+    // 2 loose, 1 exact.
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
     await page.getByRole('button', { name: 'Create account' }).click();
 
     // The CV list, not the analysis flow: a new account has neither a CV nor a posting.
@@ -268,7 +272,7 @@ test('a throttled sign-in says how long to wait, in the API’s own number', asy
 
   for (let attempt = 0; attempt < 6; attempt++) {
     await page.getByLabel('Email').fill(`throttled-${attempt}@example.com`);
-    await page.getByLabel('Password').fill('Not!TheRight-Passphrase-2026');
+    await page.getByLabel('Password', { exact: true }).fill('Not!TheRight-Passphrase-2026');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(banner).toBeVisible();
   }

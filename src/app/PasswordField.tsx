@@ -2,6 +2,8 @@
 
 import { useId, useState } from 'react';
 
+import { MIN_PASSWORD_LENGTH } from '@/lib/contracts';
+
 import styles from './login/login.module.css';
 
 /**
@@ -32,6 +34,7 @@ interface Props {
   /** Shows the strength meter. Only for fields where a password is being CHOSEN. */
   withStrength?: boolean;
   minLength?: number;
+  maxLength?: number;
   placeholder?: string;
   required?: boolean;
   /** Rendered beside the label — the sign-in screen puts "Forgot password?" here. */
@@ -59,9 +62,13 @@ const LABELS = ['Weak', 'Weak', 'Fair', 'Good', 'Strong'] as const;
 function strengthOf(password: string): { score: Score; label: string } {
   if (password.length === 0) return { score: 0, label: '' };
 
+  // CALIBRATED TO THE FLOOR THAT ACTUALLY EXISTS. These thresholds were 8 and 12, written when this
+  // app believed the server's minimum was 8. It is 12 — so the first step scored a password the
+  // server would refuse outright, and the whole scale was shifted one notch optimistic. Reaching the
+  // minimum is now the first point; the rest are earned above it.
   let score = 0;
-  if (password.length >= 8) score += 1;
-  if (password.length >= 12) score += 1;
+  if (password.length >= MIN_PASSWORD_LENGTH) score += 1;
+  if (password.length >= MIN_PASSWORD_LENGTH + 4) score += 1;
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
   if (/\d/.test(password) && /[A-Za-z]/.test(password)) score += 1;
 
@@ -80,6 +87,7 @@ export function PasswordField({
   autoComplete,
   withStrength = false,
   minLength,
+  maxLength,
   placeholder,
   required = true,
   aside,
@@ -114,6 +122,7 @@ export function PasswordField({
           autoComplete={autoComplete}
           value={value}
           minLength={minLength}
+          maxLength={maxLength}
           placeholder={placeholder}
           required={required}
           aria-describedby={describedBy}
