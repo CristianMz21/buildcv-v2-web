@@ -6,7 +6,7 @@ import { failOnConsoleErrors } from './console-errors';
 /**
  * Accessibility of the screens a visitor sees BEFORE they have an account.
  *
- * These six need no API, and that is the whole reason this file exists separately from the smoke
+ * These seven need no API, and that is the whole reason this file exists separately from the smoke
  * suite: it can run in CI, where nothing else opens a browser. Until it did, `next build` succeeding
  * was the only evidence any page rendered at all.
  *
@@ -15,11 +15,17 @@ import { failOnConsoleErrors } from './console-errors';
  * looking for work, which is not a population to lock out. Everything past the session gate is
  * covered by the smoke suite instead, because reaching it requires a real account.
  *
+ * `/` is the landing page and is FIRST here because it is now the first thing anyone sees; it was a
+ * redirect into the session gate until it carried something true to say. It is also the only screen
+ * on this list that is mostly prose and tables rather than a form, which is a different way to fail
+ * WCAG — heading order and table semantics rather than labels and focus.
+ *
  * `/reset-password` is given a token that was never issued on purpose. The page is reached from an
  * emailed link and gates on nothing, so this renders exactly what a visitor with a stale link sees —
  * which is the state most likely to be shipped untested.
  */
 const PUBLIC_SCREENS = [
+  { name: 'landing', path: '/' },
   { name: 'sign in', path: '/login' },
   { name: 'register', path: '/register' },
   { name: 'forgot password', path: '/forgot-password' },
