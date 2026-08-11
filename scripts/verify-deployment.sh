@@ -79,9 +79,17 @@ printf '  waking'
 wake
 printf '\r\033[K'
 
-HEALTH=$(az containerapp revision list -g "$GROUP" -n "$APP" \
-  --query "[?properties.trafficWeight==\`100\`] | [0].properties.healthState" -o tsv 2>/dev/null)
-[ "$HEALTH" = "Healthy" ] || fail "$REV is awake but reports $HEALTH"
+# POLLED, NOT READ ONCE. `healthState` lags the first successful request: the app answered /api/health
+# and still reported `None` for another ten seconds, because the platform's own probe had not run yet.
+# Reading it immediately after waking failed a healthy deployment for a second time, in a second way.
+health=""
+for _ in $(seq 1 12); do
+  health=$(az containerapp revision list -g "$GROUP" -n "$APP" \
+    --query "[?properties.trafficWeight==\`100\`] | [0].properties.healthState" -o tsv 2>/dev/null)
+  [ "$health" = "Healthy" ] && break
+  sleep 10
+done
+[ "$health" = "Healthy" ] || fail "$REV is awake but still reports ${health:-nothing} after 120s"
 pass "reports Healthy once awake"
 
 if [ -n "$EXPECTED_TAG" ]; then
