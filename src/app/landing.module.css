@@ -916,3 +916,33 @@
   font: 400 13.5px var(--font);
   color: var(--fg-muted);
 }
+
+/* Same shape as the application shell's, and off-screen rather than hidden for the same reason: a
+   skip link removed from the tab order is not a skip link. */
+.skip {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font: 600 14px var(--font);
+  text-decoration: none;
+  transition: top 0.15s;
+}
+
+.skip:focus-visible {
+  top: 8px;
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* A LOCAL CLASS, not a bare `main:focus`. CSS Modules refuses a selector with no local class or id
+   — "pure selectors must contain at least one local class or id" — and refusing it is a build error
+   that takes the whole page to a 500. `pnpm lint` and `pnpm typecheck` both passed while the landing
+   page was down, because neither compiles CSS; only the build and the dev server do. */
+.content:focus {
+  outline: none;
+}
