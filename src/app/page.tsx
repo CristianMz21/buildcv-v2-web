@@ -108,9 +108,19 @@ export default async function Home() {
 
   return (
     <div className={styles.page}>
+      {/* BEFORE THE NAVIGATION, because a skip link that comes after it skips nothing. The first
+          version sat between the nav and the content and the test caught it: seven stops still stood
+          in front, and the link the person needed was the eighth.
+
+          Seven — brand, four section links, Sign in, and the call to action — on the one page whose
+          entire job is to be read by somebody who has never been here before. */}
+      <a href="#top" className={styles.skip}>
+        Skip to content
+      </a>
+
       <LandingNav />
 
-      <main id="top">
+      <main id="top" tabIndex={-1} className={styles.content}>
         <section className={styles.hero}>
           <div className={styles.heroGrid}>
             <div>

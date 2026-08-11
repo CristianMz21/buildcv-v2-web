@@ -24,6 +24,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={styles.shell}>
+      {/*
+        FIVE TAB STOPS STOOD BETWEEN THE KEYBOARD AND THE CONTENT, on every one of these screens, and
+        one of them was Sign out. Measured: brand, New analysis, CVs, Settings, Sign out — passed
+        through every time a page loads, by anybody who does not use a mouse, to reach their own CV.
+        Somebody navigating this way met the button that ends their session more often than anything
+        else in the product.
+
+        First in the DOM so it is the first thing focus finds, and visible only while focused — a
+        skip link that is always visible is a design decision nobody asked for, and one that is never
+        visible is not a skip link.
+      */}
+      <a href="#content" className={styles.skip}>
+        Skip to content
+      </a>
+
       <aside className={styles.sidebar}>
         <Link href="/" className={styles.brand}>
           <span className={styles.mark} aria-hidden="true">
@@ -41,7 +56,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <AccountBadge />
       </aside>
 
-      <main className={styles.main}>
+      {/* `tabIndex={-1}` is what makes the skip link WORK rather than merely scroll. Without it the
+          browser moves the viewport and leaves focus behind in the sidebar, so the next Tab returns
+          to the navigation the person just skipped — the failure that makes skip links feel broken. */}
+      <main id="content" tabIndex={-1} className={styles.main}>
         <div className={styles.content}>{children}</div>
       </main>
     </div>

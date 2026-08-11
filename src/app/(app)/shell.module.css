@@ -222,3 +222,39 @@
     padding: 20px 16px;
   }
 }
+
+/*
+ * Off-screen until focused, then a real, readable control.
+ *
+ * NOT `display: none` and not `visibility: hidden` — both remove it from the tab order, which is the
+ * one thing it exists to be in. Positioned out of view instead, so it is reachable by keyboard and
+ * invisible to everyone else.
+ *
+ * `--on-primary` rather than white, for the same reason every other fill on this palette takes it:
+ * in the dark theme the accent is light and white text on it measures 2.54:1.
+ */
+.skip {
+  position: absolute;
+  left: 8px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font: 600 14px var(--font);
+  text-decoration: none;
+  transition: top 0.15s;
+}
+
+.skip:focus-visible {
+  top: 8px;
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* The target must not draw a ring of its own when the skip link sends focus here: it is a region
+   rather than a control, and a box around the whole page reads as a rendering fault. */
+.main:focus {
+  outline: none;
+}

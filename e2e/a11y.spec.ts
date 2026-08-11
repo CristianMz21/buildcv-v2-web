@@ -259,6 +259,49 @@ test('the import review step meets WCAG AA', async ({ page, context }) => {
 });
 
 /**
+ * The skip link, tested by USING it rather than by finding it.
+ *
+ * Five tab stops stood between the keyboard and the content on every authenticated screen — brand,
+ * New analysis, CVs, Settings, Sign out — so anybody not using a mouse passed the button that ends
+ * their session more often than they reached anything else. Measured before this existed.
+ *
+ * THE FAILURE MODE OF A SKIP LINK IS THAT IT SCROLLS WITHOUT MOVING FOCUS. The page jumps, the
+ * person believes they arrived, and the next Tab returns them to the navigation they just skipped.
+ * It looks correct in a screenshot and is useless in practice — so this asserts where focus LANDS,
+ * not where the viewport went.
+ */
+for (const surface of [
+  { name: 'the landing page', path: '/', authenticated: false },
+  { name: 'the application shell', path: '/resumes', authenticated: true },
+] as const) {
+  test(`the skip link on ${surface.name} takes the keyboard past the navigation`, async ({ page, context }) => {
+    if (surface.authenticated) {
+      await context.addCookies([
+        { name: 'bcv_access', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+        { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+      ]);
+    }
+
+    await inTheme(page);
+    await page.goto(surface.path);
+
+    await page.keyboard.press('Tab');
+    const skip = page.getByRole('link', { name: 'Skip to content' });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+
+    await page.keyboard.press('Enter');
+    await expect(page.locator('main')).toBeFocused();
+
+    await page.keyboard.press('Tab');
+    expect(
+      await page.evaluate(() => !!document.activeElement?.closest('main')),
+      'the stop after the skip link must be inside the content',
+    ).toBe(true);
+  });
+}
+
+/**
  * The upload control is the button, and the file input is the mechanism.
  *
  * Pins BOTH halves, because each is one careless edit from the other's failure. Deleting the input
