@@ -78,6 +78,13 @@ jobs:
       # a check in while it is red only teaches the reader that a red check is normal. The contract
       # has been regenerated against a running API and this passes clean, which is what earns it a
       # place here. Needs nothing: no API, no credentials.
+      # The two dark blocks in globals.css must say the same thing. They are duplicated because plain
+      # CSS cannot alias a media query to an attribute selector, and the alternative was leaving
+      # anybody with JavaScript disabled on a dark desktop looking at a light app. Drift between them
+      # would be visible ONLY to people who set their system to dark and never touched the toggle —
+      # the population least likely to report it and hardest to reproduce.
+      - run: pnpm check:theme
+
       - run: pnpm contract:coverage
 
       # BUILDCV_API_ORIGIN is deliberately absent, exactly as in the Dockerfile: the build is
@@ -135,6 +142,13 @@ jobs:
       # BUILDCV_API_ORIGIN is left at its dev default, which resolves to nothing here. That is the
       # point: if a screen in this list ever starts calling the API, this job fails and says so.
       - run: pnpm test:a11y
+
+      # THE SAME TWENTY-SEVEN CHECKS AGAINST THE OTHER PALETTE, which is the only thing that makes a
+      # dark theme more than a set of colours somebody liked. Every contrast pair doubles when a second
+      # theme exists, and axe reads what the page actually computes — one theme at a time. The first
+      # dark run failed nine of these: white text on the accent at 2.54:1, and a landing block that
+      # used the TEXT colour as a surface and inverted with the theme.
+      - run: pnpm test:a11y:dark
 
   # Publishes the image the other two jobs just vouched for.
   #

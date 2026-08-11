@@ -52,7 +52,7 @@
   height: 26px;
   border-radius: 8px;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,14 +74,14 @@
   height: 36px;
   border-radius: 10px;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font: 600 13px var(--font);
   transition: background 0.15s;
 }
 
 .cta:hover {
   background: var(--primary-hover);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .nav {

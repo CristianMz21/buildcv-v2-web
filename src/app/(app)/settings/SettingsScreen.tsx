@@ -14,6 +14,7 @@ import {
 } from '@/lib/contracts';
 import { failureOf, messageOf, waitFor } from '@/lib/http';
 
+import { Appearance } from './Appearance';
 import styles from './settings.module.css';
 
 export function SettingsScreen() {
@@ -96,6 +97,10 @@ export function SettingsScreen() {
           {failureRef && <span className={styles.note}> Reference {failureRef}</span>}
         </p>
       )}
+
+      {/* Before the account panels, because it changes how everything below is read and needs no
+          data to work — it is the one thing on this screen that still functions when the API is down. */}
+      <Appearance />
 
       {account &&
         (hasPassword(account) ? (

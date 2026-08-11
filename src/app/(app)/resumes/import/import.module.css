@@ -156,8 +156,8 @@
 }
 
 .inputUnsure {
-  border-color: #fde68a;
-  background: #fffdf5;
+  border-color: var(--warn-border);
+  background: var(--warn-tint);
 }
 
 .flag {

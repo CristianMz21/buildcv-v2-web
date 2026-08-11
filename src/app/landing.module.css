@@ -47,7 +47,7 @@
   height: 28px;
   border-radius: 8px;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -171,12 +171,12 @@
 
 .cta {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .cta:hover {
   background: var(--primary-hover);
-  color: #fff;
+  color: var(--on-primary);
 }
 
 .ctaGhost {
@@ -399,7 +399,7 @@
   gap: 18px;
   padding: 16px;
   border: 1px solid #dbeafe;
-  background: #f8fbff;
+  background: var(--primary-tint);
   border-radius: 12px;
 }
 
@@ -526,8 +526,8 @@
   gap: 12px;
   padding: 20px 24px;
   border-radius: 16px;
-  background: var(--fg);
-  color: #fff;
+  background: var(--panel-contrast);
+  color: var(--panel-contrast-fg);
 }
 
 .answerText {
@@ -754,10 +754,16 @@
 
 /* ── Dark call to action ──────────────────────────────────────────────────── */
 
+/*
+ * A BLOCK THAT CONTRASTS WITH THE PAGE, which is not the same as a dark block — and this rule proved
+ * the difference. `background: var(--fg)` is the colour of TEXT used as a surface: deliberate-looking
+ * near-black in a light theme, and near-WHITE the moment a dark one exists. Its heading measured
+ * 1.04:1 the first time the suite ran in dark, on the most persuasive block of the most public page.
+ */
 .dark {
   border-radius: 16px;
-  background: var(--fg);
-  color: #fff;
+  background: var(--panel-contrast);
+  color: var(--panel-contrast-fg);
   padding: clamp(40px, 5vw, 56px) clamp(24px, 4vw, 48px);
   text-align: center;
 }
@@ -772,14 +778,14 @@
 .darkLead {
   margin: 0 auto 28px;
   font: 400 16px/1.6 var(--font);
-  color: #d1d5db;
+  color: var(--panel-contrast-muted);
   max-width: 460px;
 }
 
 .darkFine {
   margin: 16px 0 0;
   font: 400 13.5px var(--font);
-  color: #d1d5db;
+  color: var(--panel-contrast-muted);
 }
 
 /* ── FAQ ──────────────────────────────────────────────────────────────────── */

@@ -51,11 +51,45 @@ const PUBLIC_SCREENS = [
 // AAA would be turned off within a week — which protects nobody.
 const WCAG_AA = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
+/**
+ * THE WHOLE SUITE RUNS TWICE, once per theme, and that is the only thing that makes a dark theme
+ * more than a palette somebody liked.
+ *
+ * Every contrast pair in this product was measured for light, and three of them had already been
+ * caught below the floor before tonight. A second palette doubles every one of those pairs — and it
+ * would be invisible to all twenty-seven checks here, because axe reads the colours the page actually
+ * computes and the page only computes one theme at a time.
+ *
+ * `BUILDCV_THEME=dark pnpm test:a11y` stamps `data-theme="dark"` on the root before anything renders,
+ * exactly as the production script does for somebody who chose it, and every existing scan then
+ * measures the dark palette without any of them being rewritten.
+ */
+const THEME = process.env.BUILDCV_THEME === 'dark' ? 'dark' : null;
+
+async function inTheme(page: import('@playwright/test').Page): Promise<void> {
+  if (!THEME) return;
+  await page.addInitScript((theme) => {
+    // GUARDED, because an init script runs before `document.documentElement` exists. The first
+    // version threw on every page — and the suite caught it as a console error rather than as a
+    // contrast failure, which is the only reason it was not mistaken for a broken palette.
+    const set = () => document.documentElement?.setAttribute('data-theme', theme as string);
+    set();
+    document.addEventListener('DOMContentLoaded', set);
+    try {
+      localStorage.setItem('buildcv.theme', theme as string);
+    } catch {
+      // A browser that refuses storage still gets the attribute, which is what the scan reads.
+    }
+  }, THEME);
+}
+
 for (const screen of PUBLIC_SCREENS) {
   test(`${screen.name} meets WCAG AA`, async ({ page }) => {
     const consoleErrors = failOnConsoleErrors(page);
 
-    await page.goto(screen.path);
+    await inTheme(page);
+    await inTheme(page);
+  await page.goto(screen.path);
 
     const { violations } = await new AxeBuilder({ page })
       .withTags(WCAG_AA)
@@ -120,7 +154,9 @@ for (const screen of AUTHENTICATED_SCREENS) {
       { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
     ]);
 
-    await page.goto(screen.path);
+    await inTheme(page);
+    await inTheme(page);
+  await page.goto(screen.path);
 
     // Proves the gate let us through rather than bouncing to /login — without this the scan could be
     // measuring the sign-in page under another name and reporting it as coverage.
@@ -199,6 +235,7 @@ test('the import review step meets WCAG AA', async ({ page, context }) => {
     );
   }, PROPOSAL);
 
+  await inTheme(page);
   await page.goto('/resumes/import');
 
   // Proves the review step rendered rather than the drop zone, AND that the fixture reached it.
@@ -234,6 +271,7 @@ test('the import upload has exactly one control', async ({ page, context }) => {
     { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
   ]);
 
+  await inTheme(page);
   await page.goto('/resumes/import');
 
   // The button the person actually meets.
@@ -274,7 +312,9 @@ const STRENGTHS = [
 
 for (const strength of STRENGTHS) {
   test(`the ${strength.label} strength meter meets WCAG AA`, async ({ page }) => {
-    await page.goto('/register');
+    await inTheme(page);
+    await inTheme(page);
+  await page.goto('/register');
     await page.locator('#password').fill(strength.password);
 
     // Asserts the RATING, not merely that something appeared. Four passwords that all happened to
@@ -312,7 +352,9 @@ for (const strength of STRENGTHS) {
  */
 for (const strength of STRENGTHS) {
   test(`the ${strength.label} bars are distinguishable from the track`, async ({ page }) => {
-    await page.goto('/register');
+    await inTheme(page);
+    await inTheme(page);
+  await page.goto('/register');
     await page.locator('#password').fill(strength.password);
     await expect(page.getByText(strength.label, { exact: true })).toBeVisible();
 
@@ -389,6 +431,7 @@ for (const strength of STRENGTHS) {
  * while the icon keeps changing and everything still LOOKS right.
  */
 test('the password reveal shows the password and announces its state', async ({ page }) => {
+  await inTheme(page);
   await page.goto('/login');
 
   const field = page.locator('#password');
@@ -426,7 +469,9 @@ for (const screen of [
   { name: 'register', path: '/register' },
 ]) {
   test(`the Google link on ${screen.name} is a real, reachable link`, async ({ page }) => {
-    await page.goto(screen.path);
+    await inTheme(page);
+    await inTheme(page);
+  await page.goto(screen.path);
 
     const link = page.getByRole('link', { name: 'Continue with Google' });
     await expect(link).toBeVisible();
@@ -458,6 +503,7 @@ for (const screen of [
  * check and leaves a keyboard user typing blind into a form they cannot see.
  */
 test('every control on sign in shows where the keyboard is', async ({ page }) => {
+  await inTheme(page);
   await page.goto('/login');
 
   // Scoped to the page's own main region, which leaves out the `next dev` devtools button. That

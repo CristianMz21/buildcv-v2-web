@@ -91,3 +91,48 @@
   font: 400 12.5px/1.5 var(--font);
   margin: 0;
 }
+
+/* ── Appearance ───────────────────────────────────────────────────────────── */
+
+/* A fieldset carries a border and margin by default in every browser; the legend is the panel title
+   here, so the box is reset and the semantics kept. */
+.themeSet {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.themeOption {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.themeOption + .themeOption {
+  border-top: 1px solid var(--border-soft);
+}
+
+/* The native control, deliberately. A custom radio is where focus rings and forced-colours support
+   go to die, and this one has to be operable by keyboard on a screen about accessibility. */
+.themeOption input {
+  margin-top: 2px;
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.themeLabel {
+  display: block;
+  font: 500 13.5px var(--font);
+  color: var(--fg);
+}
+
+.themeHint {
+  display: block;
+  margin-top: 2px;
+  font: 400 12px/1.5 var(--font);
+  color: var(--fg-faint);
+}
