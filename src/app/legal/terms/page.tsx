@@ -5,7 +5,7 @@ import { isComplete, OPERATOR } from '../details';
 import styles from '../legal.module.css';
 import { Unset } from '../Unset';
 
-export const metadata: Metadata = { title: 'Terms · BuildCv' };
+export const metadata: Metadata = { title: 'Terms' };
 
 /**
  * What the product promises and, more usefully, what it does not.

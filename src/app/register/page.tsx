@@ -6,7 +6,7 @@ import { readSession } from '@/lib/session';
 import { RegisterForm } from './RegisterForm';
 import styles from '../login/login.module.css';
 
-export const metadata: Metadata = { title: 'Create an account · BuildCv' };
+export const metadata: Metadata = { title: 'Create an account' };
 
 export default async function RegisterPage() {
   if (await readSession()) redirect('/resumes');

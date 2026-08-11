@@ -31,6 +31,15 @@ import styles from './landing.module.css';
  * numbers are measured; one rounded figure here would undercut the thing it sells.
  */
 export const metadata: Metadata = {
+  /*
+   * THE BRAND IS WRITTEN OUT HERE AND NOWHERE ELSE, because the root page is the one page the root
+   * layout's title template does not reach: `title.template` applies to CHILD segments, and
+   * `app/page.tsx` shares its segment with `app/layout.tsx`. Measured rather than assumed — every
+   * other page rendered "… · BuildCv" and this one rendered the bare phrase.
+   *
+   * The phrase leads and the brand follows, which is the right order for a product nobody is
+   * searching for by name yet: the words somebody actually types go first.
+   */
   title: 'Free CV checker and job match score · BuildCv',
   description:
     'See how well your CV answers a specific job posting. Six weighted sections, published thresholds, a separate readability score, and no AI anywhere in the number. Free for job seekers.',

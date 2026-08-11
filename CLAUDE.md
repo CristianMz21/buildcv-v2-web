@@ -366,7 +366,7 @@ because their advice does not describe this project:
 |---|---|
 | `nodejs-backend-patterns` | Express/Fastify services. There is no Node backend; the server is ASP.NET in `buildcv-v2`, and route handlers here are a four-line relay by design. |
 | `next-cache-components` | Next.js 16 `use cache` and PPR. This project is on the 15.5 line and every API call is `cache: 'no-store'` per-user data behind a session. |
-| `seo` | Targets public pages. Everything but `/login` and `/register` is behind a session gate, and `frame-ancestors 'none'` says this app is not meant to be indexed. |
+| `seo` | ~~Targets public pages. Everything but `/login` and `/register` is behind a session gate.~~ **This reason expired when the landing page shipped** and nobody revisited it — see the discovery section below. The skill stays out because the work is now done and is small; the removal is no longer justified by "there is nothing public". |
 | `nodejs-best-practices` | Framework selection and general architecture, for a project whose framework and architecture are settled. |
 | `next-upgrade` | Only applies during a version migration. |
 | `frontend-design` | Proposes aesthetic direction. The design is fixed by the source mockup, and every deliberate deviation is recorded in the README table. |
@@ -374,6 +374,41 @@ because their advice does not describe this project:
 **autoskills has no exclude mechanism** — `skills-lock.json` records what is installed, not what was
 rejected. A future `npx autoskills` re-detects the same stack and restores all six. Re-prune after
 running it, or decide knowingly to keep them.
+
+## Being found, and being shared
+
+The landing page is the only public content this product has, and for a while it was invisible from
+outside. There was no `robots.txt`, no `sitemap.xml`, and **no unfurl tags at all** — a link pasted
+into LinkedIn, WhatsApp or Slack rendered as a bare URL with no name and no sentence, while the copy
+that belonged in that card already sat on the page.
+
+**The reason for the gap is worth more than the gap.** The `seo` skill was removed on the recorded
+grounds that "everything but `/login` and `/register` is behind a session gate". That was true when
+it was written and stopped being true the day the landing page shipped — and nothing re-opens a
+decision whose premise quietly expires. Look for that shape; this repo has produced it twice now,
+the other being the password minimum.
+
+- **`src/lib/site.ts` holds `SITE_ORIGIN`, and hardcoding a hostname there is correct rather than
+  lazy.** A canonical origin exists to say "whatever address you arrived by, this is the address of
+  this page", so resolving it from the request would defeat what it is for. The app genuinely answers
+  on two hostnames — the custom domain and the Container Apps one underneath — and only one of them
+  should ever appear in a search result. `verify-deployment.sh` reads the value out of this file
+  rather than repeating it.
+- **`robots.ts` disallows `/reset-password` specifically**, because that page is reached from an
+  emailed link carrying a token in the query string. The page also sets `noindex` itself: a
+  `Disallow` is a request to a crawler, a meta tag is on the page.
+- **`sitemap.ts` lists fewer pages than `robots.ts` allows.** `/login` and `/register` stay crawlable
+  so a brand search reaches them, and stay out of the sitemap so they do not outrank the page that
+  explains what they are for.
+- **The root layout's `title.template` does NOT reach `app/page.tsx`.** Templates apply to *child*
+  segments and the root page shares its segment with the root layout, so the landing page writes
+  `· BuildCv` out by hand while all fifteen other pages get it from the template. Measured — the
+  first version shipped a landing title with no product name in it, and every other page was fine,
+  which is exactly the pattern that reads as "working".
+
+`verify-deployment.sh` asserts all of this against the live URL, because nothing else can: `next
+build` lists `/robots.txt` and `/sitemap.xml` whether or not they say anything useful, and no test in
+this repo opens either.
 
 ## Guardrails
 
