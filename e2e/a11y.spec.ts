@@ -141,6 +141,86 @@ for (const screen of AUTHENTICATED_SCREENS) {
   });
 }
 
+
+/**
+ * The import REVIEW step, which is where a candidate corrects what the parser read.
+ *
+ * REACHED WITHOUT AN API, and it is the only way this screen can be scanned at all. The review step
+ * appears after an upload, so every check stops one step short of it — including the three
+ * authenticated scans above, which see the drop zone and never what comes next. It restores
+ * `{ proposal, draft }` from `sessionStorage` on mount, so seeding that is the honest way in: it is
+ * the same code path a candidate takes after a stray refresh, which is the reason the restore exists.
+ *
+ * SCANNED NOW BECAUSE IT IS ABOUT TO CHANGE. The API is adding a `suggestion` to each field so this
+ * screen can offer one-click autocorrect, and a second fix means entries that used to render as
+ * blanks will render with a role. Both land on this screen. A check written after the change would
+ * only ever describe the new version; written now, it says whether the change broke anything.
+ *
+ * The fixture is deliberately awkward rather than tidy — an unparseable phone, a bare domain, a
+ * missing type and an empty row are the four blocking errors a real CV produced, which is what this
+ * screen exists to let somebody fix.
+ */
+const PROPOSAL = {
+  draft: {
+    contact: {
+      fullName: 'Cristian Arellano',
+      email: 'someone@example.com',
+      phoneNumber: '310 4580645',
+      location: 'Bogotá, Colombia',
+      website: 'cristianarellano.com',
+      summary: 'Backend developer.',
+    },
+    experiences: [
+      { type: null, organization: 'Acme', position: 'Backend developer', start: '2021', end: null },
+      { type: null, organization: '', position: '', start: null, end: null },
+    ],
+  },
+  confidence: {
+    overall: 'Medium',
+    fields: [
+      { path: 'contact.phoneNumber', confidence: 'Medium', sourceText: '310 4580645' },
+      { path: 'contact.website', confidence: 'Medium', sourceText: 'cristianarellano.com' },
+      { path: 'experiences[0].type', confidence: 'NotExtracted', sourceText: null },
+    ],
+    warnings: ['Some fields could not be read confidently.'],
+  },
+};
+
+test('the import review step meets WCAG AA', async ({ page, context }) => {
+  await context.addCookies([
+    { name: 'bcv_access', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+    { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+  ]);
+
+  await page.addInitScript((proposal) => {
+    sessionStorage.setItem(
+      'buildcv.import.draft',
+      JSON.stringify({ proposal, draft: (proposal as { draft: unknown }).draft }),
+    );
+  }, PROPOSAL);
+
+  await page.goto('/resumes/import');
+
+  // Proves the review step rendered rather than the drop zone, AND that the fixture reached it.
+  // Anchored to the label rather than to a value: the heading alone would pass on an empty review,
+  // which is the failure this file keeps finding in itself.
+  await expect(page.getByRole('heading', { name: 'Check what was read' })).toBeVisible();
+  await expect(page.getByLabel('Phone')).toHaveValue('310 4580645');
+
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(WCAG_AA)
+    .exclude('nextjs-portal')
+    .exclude('#next-logo')
+    .analyze();
+
+  expect(
+    violations.flatMap((v) =>
+      v.nodes.map((node) => `${v.id} (${v.impact}) at ${node.target.join(' ')} — ${node.failureSummary?.replace(/\s+/g, ' ').trim()}`),
+    ),
+    'the import review step must have no WCAG AA violations',
+  ).toEqual([]);
+});
+
 /**
  * The upload control is the button, and the file input is the mechanism.
  *
