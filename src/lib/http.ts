@@ -12,6 +12,8 @@ export class SessionExpired extends Error {}
 export interface RequestFailure extends Error {
   status: number;
   fieldErrors: Record<string, string[]>;
+  /** The id this request was logged under, when the response carried one. */
+  correlationId?: string;
 }
 
 /**
@@ -73,7 +75,29 @@ export async function failureOf(response: Response): Promise<RequestFailure> {
   const failure = new Error(message) as RequestFailure;
   failure.status = response.status;
   failure.fieldErrors = problem.errors ?? {};
+  // The last hop of a chain that already exists and, until now, ended here. `reach()` mints an id per
+  // upstream call and sends it, the API writes its log line under that same word rather than minting
+  // its own, `relay` copies it back onto the response and `unreachable()` prints it to stdout. Every
+  // one of those was built so a failure could be found afterwards — and the browser threw the id away,
+  // which left a person able to say only "it broke" and nobody able to look it up.
+  failure.correlationId = response.headers.get('x-correlation-id') ?? undefined;
   return failure;
+}
+
+/**
+ * The id a thrown failure was logged under, or null.
+ *
+ * Deliberately shaped like `fieldErrorsOf` — a caught value is `unknown`, and a screen that reached
+ * into it directly would be one `instanceof` check away from rendering `undefined` at somebody.
+ *
+ * It is worth showing ONLY where the id genuinely exists on both sides. An outage answers 503 or 504
+ * with the id `reach()` minted, and the API holds a matching record for a timeout because it accepted
+ * the connection before going quiet. A 400 from a form does not need one — the message already says
+ * what to fix, and a reference number beside "enter a valid email" is noise dressed as rigour.
+ */
+export function correlationIdOf(error: unknown): string | null {
+  const carried = (error as { correlationId?: string } | null)?.correlationId;
+  return carried != null && carried !== '' ? carried : null;
 }
 
 /** The field errors carried on a thrown failure, or none. */

@@ -12,7 +12,7 @@ import type {
   ResumeSummaryResponse,
 } from '@/lib/contracts';
 import { resumeLabel } from '@/lib/format';
-import { fieldErrorsOf, messageOf, readJson, SessionExpired } from '@/lib/http';
+import { correlationIdOf, fieldErrorsOf, messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import styles from './analysis.module.css';
 import { InputsStep } from './InputsStep';
@@ -36,6 +36,9 @@ export function AnalysisFlow() {
   const [runStep, setRunStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Kept beside the message rather than folded into it: the sentence is for the person and the id is
+  // for whoever they show it to, and joining them would put a UUID inside a screen-reader sentence.
+  const [errorReference, setErrorReference] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const [resumes, setResumes] = useState<ResumeSummaryResponse[] | null>(null);
@@ -158,6 +161,7 @@ export function AnalysisFlow() {
   async function extract() {
     setBusy(true);
     setError(null);
+    setErrorReference(null);
     setFieldErrors({});
 
     try {
@@ -181,6 +185,7 @@ export function AnalysisFlow() {
     } catch (caught) {
       if (caught instanceof SessionExpired) return onExpired();
       setError(messageOf(caught, 'Could not read that posting.'));
+      setErrorReference(correlationIdOf(caught));
     } finally {
       setBusy(false);
     }
@@ -189,6 +194,7 @@ export function AnalysisFlow() {
   async function run() {
     setBusy(true);
     setError(null);
+    setErrorReference(null);
     setFieldErrors({});
     setRunStep(0);
     setPhase('running');
@@ -244,6 +250,7 @@ export function AnalysisFlow() {
       if (caught instanceof SessionExpired) return onExpired();
       setFieldErrors(fieldErrorsOf(caught));
       setError(messageOf(caught, 'The analysis failed.'));
+      setErrorReference(correlationIdOf(caught));
       // Back to the form that owns the inputs, so a field error lands next to its input rather than
       // on a progress screen with nothing to correct.
       setPhase('requirements');
@@ -263,6 +270,7 @@ export function AnalysisFlow() {
     setRequirements([]);
     setCounted(new Set());
     setError(null);
+    setErrorReference(null);
     setFieldErrors({});
   }
 
@@ -311,7 +319,19 @@ export function AnalysisFlow() {
           <>
             {error && (
               <div className={`${styles.notice} ${styles.noticeError}`} role="alert">
-                {error}
+                <div>
+                  {error}
+                  {/* OUTSIDE the sentence, and shown only when the response actually carried one — a
+                      400 on the posting text has nothing to look up and would get a reference number
+                      that leads nowhere. `user-select: all` is the whole point: this exists to be
+                      copied into a message, and asking somebody to transcribe a UUID by hand is
+                      asking them not to bother. */}
+                  {errorReference && (
+                    <span className={styles.reference}>
+                      Reference <code>{errorReference}</code>
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             <InputsStep
