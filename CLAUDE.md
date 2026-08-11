@@ -300,6 +300,12 @@ Anything the dev server injects is excluded by selector (`nextjs-portal`, `#next
 `next dev` devtools, they are not in the built image, and a suite that failed on them would be
 failing on its own harness — which teaches the reader to ignore its output.
 
+**`getByRole('alert')` matches two elements under `next dev`, and the second one is empty.** Next
+injects `__next-route-announcer__` with `role="alert"` and no text, so a locator written that way
+reads an empty string and reports that the banner rendered nothing — which is indistinguishable from
+the feature being broken. It cost one wrong conclusion about the correlation-reference work before
+the DOM was actually dumped. Scope to the page's own region, or match the alert by its text.
+
 Playwright starts its own dev server on :3210 unless `BUILDCV_WEB_ORIGIN` is set, so a run cannot pass
 against a stale server. Timeouts are generous because the dev server compiles each route on first hit.
 
