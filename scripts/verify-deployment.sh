@@ -25,6 +25,16 @@ EXPECTED_TAG="${1:-}"
 pass() { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
 
+# Overwritten on failure, never appended to. `|| echo 000` produces a two-line "000\n000" that equals
+# no status you will ever compare against — the same bug this repo already fixed once in
+# verify-image.sh, written again here from memory and caught the same way: by a result that made no
+# sense next to a working curl.
+status() {
+  local code
+  code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "$@" 2>/dev/null) || code=000
+  printf '%s' "$code"
+}
+
 command -v az > /dev/null || fail "az is required — without it this cannot tell which revision it is measuring"
 
 # ── 0. What am I actually looking at? ─────────────────────────────────────────
@@ -51,9 +61,28 @@ REV=$(echo "$LIVE" | cut -f1)
 HEALTH=$(echo "$LIVE" | cut -f2)
 IMAGE=$(echo "$LIVE" | cut -f3)
 
-[ "$HEALTH" = "Healthy" ] || fail "$REV holds the traffic but reports $HEALTH"
-pass "$REV holds 100% of traffic, Healthy"
+pass "$REV holds 100% of traffic"
 pass "running $IMAGE"
+
+# HEALTH IS ASSERTED AFTER WAKING, NOT BEFORE. At `min-replicas 0` there is no replica to probe while
+# the app is idle, so `healthState` reads `None` — which is the normal resting state and not a fault.
+# Checking it first reported a failed deployment on a deployment that was merely asleep.
+wake() {
+  local waited=0
+  until [ "$(status "$URL/api/health")" = "200" ]; do
+    waited=$((waited + 5))
+    if [ "$waited" -gt 120 ]; then fail "no answer from $URL after ${waited}s"; fi
+    sleep 5
+  done
+}
+printf '  waking'
+wake
+printf '\r\033[K'
+
+HEALTH=$(az containerapp revision list -g "$GROUP" -n "$APP" \
+  --query "[?properties.trafficWeight==\`100\`] | [0].properties.healthState" -o tsv 2>/dev/null)
+[ "$HEALTH" = "Healthy" ] || fail "$REV is awake but reports $HEALTH"
+pass "reports Healthy once awake"
 
 if [ -n "$EXPECTED_TAG" ]; then
   case "$IMAGE" in
@@ -62,31 +91,13 @@ if [ -n "$EXPECTED_TAG" ]; then
   esac
 fi
 
-# Overwritten on failure, never appended to. `|| echo 000` produces a two-line "000\n000" that equals
-# no status you will ever compare against — the same bug this repo already fixed once in
-# verify-image.sh, written again here from memory and caught the same way: by a result that made no
-# sense next to a working curl.
-status() {
-  local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' -m 30 "$@" 2>/dev/null) || code=000
-  printf '%s' "$code"
-}
-
 # ── 1. It serves ──────────────────────────────────────────────────────────────
 #
 # WOKEN FIRST, ON A LONGER LEASH. This app runs at `min-replicas 0`, so the first request after an
 # idle period pays for a container start and can take far longer than any request a user will see.
 # Measuring that as a failure would make this script report an outage every time it ran second.
 echo "Serving:"
-printf '  waking'
-for _ in $(seq 1 20); do
-  [ "$(status "$URL/api/health")" = "200" ] && break
-  printf '.'
-  sleep 5
-done
-printf '\r\033[K'
-
-[ "$(status "$URL/api/health")" = "200" ] || fail "/api/health did not answer 200 after 100s"
+[ "$(status "$URL/api/health")" = "200" ] || fail "/api/health did not answer 200"
 pass "/api/health answers"
 [ "$(status "$URL/login")" = "200" ] || fail "/login did not answer 200"
 pass "/login answers"
