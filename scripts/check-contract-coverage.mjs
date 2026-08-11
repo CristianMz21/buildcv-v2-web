@@ -238,7 +238,28 @@ const CLAIMS = [
     falsifiedBy: /verif/i,
     fix: 'the API now serves an email-verification route — rewrite or delete that sentence',
   },
+  {
+    file: 'src/app/(app)/settings/SettingsScreen.tsx',
+    says: 'is the only way into this account',
+    falsifiedBy: /set-password|create-password/i,
+    fix: 'the API can now give a passwordless account a password — that sentence promises otherwise',
+  },
 ];
+
+/*
+ * WHAT THE RULE ABOVE CANNOT SEE, said plainly rather than left for somebody to assume.
+ *
+ * The API side reports that password reset on a provider-only account refuses to mint a password,
+ * and that the reason is structural: the reset token is signed over the password hash, so an account
+ * with none has nothing to sign. That is a better guarantee than a promise — and it is a guarantee
+ * about a BRANCH, which no contract can express. `RequestPasswordReset` choosing one path over
+ * another changes no path, no schema and no method.
+ *
+ * So this entry catches only the shape where a NEW route appears that could hand a passwordless
+ * account a password. It is a partial net and is written down as one. A rule that looked like
+ * coverage while checking nothing would be worse than no rule, because the next reader would stop
+ * looking.
+ */
 
 const claimed = [];
 for (const claim of CLAIMS) {
