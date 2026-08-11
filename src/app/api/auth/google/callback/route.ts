@@ -30,12 +30,30 @@ export const dynamic = 'force-dynamic';
  * development. `SITE_ORIGIN` is for the address we PUBLISH — the redirect URI Google matches against —
  * and using it here would bounce a developer out of their own dev server.
  */
-function refuse(origin: string, reason: string, logged: string): NextResponse {
+function refuse(origin: string, reason: string, logged: string, reference?: string | null): NextResponse {
   console.error(
-    JSON.stringify({ level: 'error', at: new Date().toISOString(), name: 'GoogleSignInFailed', reason, detail: logged }),
+    JSON.stringify({
+      level: 'error',
+      at: new Date().toISOString(),
+      name: 'GoogleSignInFailed',
+      reason,
+      detail: logged,
+      // THE ONLY THING THAT JOINS THE TWO LOGS. The API writes its refusal under the id this BFF
+      // sent it, and until now a non-2xx dropped that id here — so a rejection lived in both logs
+      // and could be found in neither. The peer's misconfigured audience would have surfaced as
+      // exactly this: a failure indistinguishable from a forged token, for a reason on the other
+      // side of a wall.
+      correlationId: reference ?? null,
+    }),
   );
 
-  const response = NextResponse.redirect(new URL(`/login?error=${reason}`, origin), { status: 302 });
+  const target = new URL(`/login?error=${reason}`, origin);
+  // Carried in the URL because the person who just hit this is the one who will report it, and an id
+  // nobody can quote is an id nobody uses. It is a lookup key, not a secret: it names a log line and
+  // grants nothing.
+  if (reference) target.searchParams.set('ref', reference);
+
+  const response = NextResponse.redirect(target, { status: 302 });
   // Spent either way. Leaving them behind would let a second attempt reuse a state value that has
   // already been through one exchange.
   response.cookies.delete(STATE_COOKIE);
@@ -93,7 +111,37 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw error;
     }
 
-    if (!deleted.ok) return refuse(url.origin, 'delete', `the API refused the deletion with ${deleted.status}`);
+    if (!deleted.ok) {
+      /*
+       * BACK TO SETTINGS, NOT TO THE SIGN-IN SCREEN, and this was a real defect before it was a
+       * choice. A failed deletion leaves the session intact — nothing was erased — and `/login`
+       * redirects anybody holding one straight to `/resumes`. So the person landed on their CV list
+       * with no message at all, unable to tell whether their account had just been deleted.
+       *
+       * Settings is where they started and where the answer belongs: still here, nothing changed.
+       */
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          at: new Date().toISOString(),
+          name: 'GoogleDeleteFailed',
+          detail: `the API refused the deletion with ${deleted.status}`,
+          correlationId: deleted.headers.get('x-correlation-id'),
+        }),
+      );
+
+      const back = new URL('/settings', url.origin);
+      back.searchParams.set('deleteFailed', '1');
+
+      const reference = deleted.headers.get('x-correlation-id');
+      if (reference) back.searchParams.set('ref', reference);
+
+      const response = NextResponse.redirect(back, { status: 302 });
+      response.cookies.delete(STATE_COOKIE);
+      response.cookies.delete(VERIFIER_COOKIE);
+      response.cookies.delete(INTENT_COOKIE);
+      return response;
+    }
 
     // The session is cleared HERE rather than left to expire. The account behind it no longer exists,
     // so every cookie still on this browser is a credential for nothing — and the next request would
@@ -116,7 +164,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   if (!outcome.ok) {
-    return refuse(url.origin, 'rejected', `the API refused the identity with ${outcome.status}`);
+    return refuse(
+      url.origin,
+      'rejected',
+      `the API refused the identity with ${outcome.status}`,
+      outcome.correlationId,
+    );
   }
 
   await writeSession(outcome.session);
