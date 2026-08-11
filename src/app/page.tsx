@@ -1,8 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-
-import { readSession } from '@/lib/session';
 
 import { LandingFaq } from './LandingFaq';
 import { LandingNav } from './LandingNav';
@@ -101,11 +98,12 @@ const ARROW = (
   </svg>
 );
 
-export default async function Home() {
-  // Same gate the sign-in page uses, and for the same reason: somebody who already has a session came
-  // here by typing the bare domain, and their work is one screen away.
-  if (await readSession()) redirect('/resumes');
-
+/*
+ * STATIC, and it is the redirect's removal that makes it so. The signed-in bounce to /resumes now
+ * happens in `src/middleware.ts`, because a page that reads cookies is rendered per request — and
+ * this is the page whose whole purpose is to be read by somebody who has no cookies at all.
+ */
+export default function Home() {
   return (
     <div className={styles.page}>
       {/* BEFORE THE NAVIGATION, because a skip link that comes after it skips nothing. The first

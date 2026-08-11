@@ -302,6 +302,31 @@ for (const surface of [
 }
 
 /**
+ * The landing page is static, and the redirect that used to make it dynamic still works.
+ *
+ * `if (await readSession()) redirect('/resumes')` inside the page made `/` render on the server for
+ * EVERY visitor — the one page whose entire job is to be found and read by somebody who has never
+ * been here before, on a deployment that scales to zero with a five-minute cooldown. The check moved
+ * to middleware so the page could be prerendered; this asserts the behaviour did not move with it.
+ *
+ * BOTH DIRECTIONS, because a redirect that never fires and a redirect that always fires are the same
+ * change to anybody testing only one of them.
+ */
+test('the landing page serves anonymously and bounces a signed-in visitor', async ({ page, context }) => {
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  await context.addCookies([
+    { name: 'bcv_access', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+    { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+  ]);
+
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/resumes$/);
+});
+
+/**
  * The upload control is the button, and the file input is the mechanism.
  *
  * Pins BOTH halves, because each is one careless edit from the other's failure. Deleting the input

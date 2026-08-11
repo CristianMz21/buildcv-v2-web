@@ -20,7 +20,8 @@
     "gen:api:check": "pnpm gen:api && git diff --exit-code -- openapi.json src/lib/api-schema.d.ts",
     "verify:deployment": "./scripts/verify-deployment.sh",
     "check:theme": "node scripts/check-theme-parity.mjs",
-    "test:a11y:dark": "BUILDCV_THEME=dark playwright test e2e/a11y.spec.ts"
+    "test:a11y:dark": "BUILDCV_THEME=dark playwright test e2e/a11y.spec.ts",
+    "check:cookies": "node scripts/check-cookie-names.mjs"
   },
   "dependencies": {
     "next": "15.5.23",

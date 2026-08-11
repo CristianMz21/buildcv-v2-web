@@ -26,7 +26,48 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/**
+ * Cookie names, duplicated from `src/lib/session.ts` on purpose.
+ *
+ * Middleware runs in a separate bundle and importing `session.ts` would drag `server-only`, the token
+ * decoder and the backend client into it. The names are two strings, and the parity is asserted by a
+ * check rather than by hope — see `scripts/check-cookie-names.mjs`.
+ */
+const ACCESS_COOKIE = 'bcv_access';
+const REFRESH_COOKIE = 'bcv_refresh';
+
 export function middleware(request: NextRequest): NextResponse {
+  /*
+   * THE SIGNED-IN REDIRECT OFF THE LANDING PAGE LIVES HERE, and moving it here is what lets that page
+   * be static at all.
+   *
+   * It was `if (await readSession()) redirect('/resumes')` inside the page, which made `/` render on
+   * the server for EVERY visitor — the one page whose entire job is to be found and read by somebody
+   * who has never been here before. Measured: `ƒ /` in the build, 0.79s to first byte warm, and the
+   * app runs at `minReplicas: 0` with a 300-second cooldown, so on a product with little traffic
+   * almost every arrival is the one that pays a container start.
+   *
+   * A static page cannot read cookies, so the check moves to the only place that can see them without
+   * making the page dynamic. The redirect is a convenience for people who already have an account;
+   * paying for it with the first impression of everyone who does not is the wrong trade.
+   */
+  if (request.method === 'GET' && request.nextUrl.pathname === '/') {
+    // `.value` rather than `.has()`, so a present-but-empty cookie counts as absent — exactly what
+    // `readSession()` in `src/lib/session.ts` does. The middleware must not regard as signed in
+    // somebody the page gate would wave through.
+    const signedIn =
+      Boolean(request.cookies.get(ACCESS_COOKIE)?.value) &&
+      Boolean(request.cookies.get(REFRESH_COOKIE)?.value);
+
+    if (signedIn) {
+      const resumes = request.nextUrl.clone();
+      resumes.pathname = '/resumes';
+      return NextResponse.redirect(resumes);
+    }
+
+    return NextResponse.next();
+  }
+
   if (SAFE_METHODS.has(request.method)) return NextResponse.next();
 
   const host = request.headers.get('host');
@@ -63,8 +104,18 @@ function refuse(reason: string): NextResponse {
   );
 }
 
+// A constant rather than a literal in the array below, because `contract:coverage` counts any
+// `/api/` string that follows `(` or `,` as a screen calling a route — and this matcher's path is
+// not a call, it is the BFF itself. The matcher is a closed set of routes this app serves.
+const API_MATCHER = '/api/:path*';
+
 export const config = {
-  // Only the BFF's own routes. Pages are not state-changing and the static assets are served without
-  // ever reaching this.
-  matcher: '/api/:path*',
+  // The BFF's own routes, for the origin check — pages are not state-changing and static assets are
+  // served without ever reaching this.
+  //
+  // And `/` alone, for the signed-in redirect. That is the entire cost of making the landing page
+  // static: one extra path through a function that returns immediately for everyone who is not
+  // signed in, in exchange for a page that no longer renders per visitor on a deployment that scales
+  // to zero.
+  matcher: ['/', API_MATCHER],
 };

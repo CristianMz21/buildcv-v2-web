@@ -85,6 +85,12 @@ jobs:
       # the population least likely to report it and hardest to reproduce.
       - run: pnpm check:theme
 
+      # The middleware duplicates the session cookie names because it cannot import `session.ts` —
+      # that module is `server-only` and drags the token decoder behind it. Renaming a cookie there
+      # would leave every sign-in working and the middleware silently blind: a signed-in visitor would
+      # see the landing page instead of their CVs, with nothing logged and nothing thrown.
+      - run: pnpm check:cookies
+
       - run: pnpm contract:coverage
 
       # BUILDCV_API_ORIGIN is deliberately absent, exactly as in the Dockerfile: the build is
