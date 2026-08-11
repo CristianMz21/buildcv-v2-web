@@ -270,11 +270,24 @@ export function ImportScreen() {
           </span>
           <span className={styles.dropHint}>PDF, DOCX or TXT</span>
 
+          {/*
+            OUT OF THE ACCESSIBILITY TREE, because it is the mechanism and the button is the control.
+            It was `srOnly` — invisible but present and announced — with no label of any kind, so a
+            screen reader met an unnamed file input on the one screen whose entire purpose is
+            uploading a CV. axe rates that critical, and nothing in this repo had ever looked: these
+            seven screens sit behind the session gate, which no check opened until now.
+
+            Hidden rather than labelled, because labelling it leaves TWO tab stops doing one thing.
+            The button beside it is a real button with a real name, and it is the control a person
+            should meet.
+          */}
           <input
             ref={fileInput}
             type="file"
             accept={ACCEPTED}
             className="srOnly"
+            tabIndex={-1}
+            aria-hidden="true"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) void propose(file);
