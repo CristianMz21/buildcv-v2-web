@@ -30,7 +30,14 @@ command -v az > /dev/null || fail "az is required — without it this cannot tel
 # ── 0. What am I actually looking at? ─────────────────────────────────────────
 echo "Deployment:"
 
-FQDN=$(az containerapp show -g "$GROUP" -n "$APP" --query 'properties.configuration.ingress.fqdn' -o tsv 2>/dev/null)
+# THE CUSTOM DOMAIN WHEN THERE IS ONE, and that is not cosmetic. The ingress is now restricted to
+# Cloudflare's ranges, so the `*.azurecontainerapps.io` name answers 403 to anything else — including
+# this script. Measuring the origin hostname would report an outage on a healthy deployment, and worse,
+# it would measure a path no user takes: the headers a browser receives come through the edge, which
+# rewrites some of them.
+CUSTOM=$(az containerapp show -g "$GROUP" -n "$APP" \
+  --query 'properties.configuration.ingress.customDomains[0].name' -o tsv 2>/dev/null)
+FQDN=${CUSTOM:-$(az containerapp show -g "$GROUP" -n "$APP" --query 'properties.configuration.ingress.fqdn' -o tsv 2>/dev/null)}
 [ -n "$FQDN" ] || fail "no ingress FQDN for $APP in $GROUP"
 URL="https://$FQDN"
 
@@ -136,6 +143,22 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -m 60 -X POST \
 rm -f "$big"
 [ "$code" = "413" ] || fail "a 1 MB body to an anonymous route answered $code, expected 413"
 pass "an oversized body is refused (413)"
+
+# ── 5. The edge cannot be walked around ───────────────────────────────────────
+#
+# EVERY EDGE CONTROL IS DECORATIVE IF THE ORIGIN ANSWERS DIRECTLY. After the domain was put behind
+# Cloudflare, the `*.azurecontainerapps.io` hostname still served 200 with no `cf-ray` — the WAF, the
+# bot rules and the edge rate limiting were all one hostname away from being skipped. This asserts the
+# ingress restriction that closed it, because that is a setting and settings get widened.
+if [ -n "$CUSTOM" ]; then
+  echo "Origin:"
+  ORIGIN=$(az containerapp show -g "$GROUP" -n "$APP" --query 'properties.configuration.ingress.fqdn' -o tsv 2>/dev/null)
+  code=$(status "https://$ORIGIN/login")
+  case "$code" in
+    403|000) pass "the origin hostname refuses direct traffic ($code)" ;;
+    *) fail "the origin answered $code directly — the edge can be bypassed entirely" ;;
+  esac
+fi
 
 echo
 echo "The deployment is what it claims to be."

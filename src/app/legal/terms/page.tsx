@@ -74,10 +74,17 @@ export default function TermsPage() {
       <section className={styles.section}>
         <h2 className={styles.heading}>Your content stays yours</h2>
         <p className={styles.body}>
-          Nothing you write here is used to train anything, sold, or shown to anyone else. There is no
-          model to train: the scoring engine is fixed rules. You can take any CV away as a PDF at any
-          time, and you can{' '}
-          <Link href="/legal/privacy">delete everything</Link> without asking anyone.
+          Nothing you write here is used to train anything, sold, or shown to another user. There is
+          no model to train: the scoring engine is fixed rules. You can take any CV away as a PDF at
+          any time, and you can <Link href="/legal/privacy">delete everything</Link> without asking
+          anyone.
+        </p>
+        <p className={styles.body}>
+          One company sits between you and this service &mdash; Cloudflare, which filters automated
+          abuse before it reaches us and can therefore see traffic in transit. It is named on the{' '}
+          <Link href="/legal/privacy">privacy page</Link> along with what that does and does not mean.
+          Saying &ldquo;stays yours&rdquo; without saying that would be the more comfortable sentence
+          and the less true one.
         </p>
       </section>
 
