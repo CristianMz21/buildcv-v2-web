@@ -179,7 +179,8 @@ echo "Third-party disclosure:"
 docker run -d --name "$NAME" -p "$PORT:3000" \
   -e BUILDCV_API_ORIGIN=http://buildcv-api-that-does-not-resolve:8080 \
   -e GOOGLE_CLIENT_ID=verify-image-client-id \
-  -e GOOGLE_CLIENT_SECRET=verify-image-secret "$IMAGE" > /dev/null
+  -e GOOGLE_CLIENT_SECRET=verify-image-secret \
+  -e BUILDCV_SITE_ORIGIN=https://verify-image.example.test "$IMAGE" > /dev/null
 settle
 serving
 
@@ -214,6 +215,26 @@ pass "configured: the delete confirmation refuses GET (405)"
 code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 -X POST "http://localhost:$PORT/api/auth/google/confirm" 2>/dev/null) || code=000
 [ "$code" = "403" ] || fail "a POST with no Origin reached the delete-confirmation route ($code)"
 pass "configured: the delete confirmation refuses a POST with no Origin (403)"
+
+# WHERE THE CALLBACK SENDS PEOPLE, read from the container rather than reasoned about.
+#
+# This is the check that would have caught a real defect a real user found first. Every redirect out
+# of the OAuth callback was built from `new URL(request.url).origin` — which inside a container is
+# the BIND address, not the hostname a browser used. A completed Google sign-in landed on
+# `https://0.0.0.0:3000/resumes`, and so did every failure path, which put the diagnostics in that
+# file out of reach exactly when they were needed.
+#
+# `next dev` agrees with the wrong answer, because there the socket address and the address the
+# browser used are the same string. Only a container disagrees — the same shape as the prerendered
+# privacy page, and the second time tonight that shape has cost something.
+#
+# Reachable with no cookies: a callback with no state refuses, and a refusal is a redirect.
+location=$(curl -s -o /dev/null -w '%{redirect_url}' -m 10 "http://localhost:$PORT/api/auth/google/callback")
+case "$location" in
+  *0.0.0.0*) fail "the OAuth callback redirects to the bind address ($location) — nobody can reach that" ;;
+  https://verify-image.example.test/login*) pass "the OAuth callback redirects to the published origin" ;;
+  *) fail "the OAuth callback redirected somewhere unexpected: ${location:-nothing}" ;;
+esac
 
 cleanup
 

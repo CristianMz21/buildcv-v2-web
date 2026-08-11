@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 import { Warning } from '@/components/icons';
@@ -17,6 +17,17 @@ import { failureOf, messageOf, waitFor } from '@/lib/http';
 import styles from './settings.module.css';
 
 export function SettingsScreen() {
+  /*
+   * The answer to "did my account just get deleted?", for the one case where the question is real.
+   *
+   * A provider-confirmed deletion leaves this app entirely and comes back through the OAuth callback.
+   * When the API refuses it, the session is still valid and nothing was erased — so the callback
+   * returns the person HERE rather than to the sign-in screen, which would have bounced them
+   * straight to their CV list with no message and no way to tell what happened.
+   */
+  const params = useSearchParams();
+  const deleteFailed = params.get('deleteFailed') === '1';
+  const failureRef = params.get('ref');
   const router = useRouter();
   const [account, setAccount] = useState<AccountResponse | null>(null);
 
@@ -78,6 +89,14 @@ export function SettingsScreen() {
       {/* WAITS FOR THE ACCOUNT rather than assuming a password exists while it loads. Rendering the
           password form optimistically and swapping it a moment later would flash a control at
           somebody who does not have one, and on a slow connection the flash is the whole visit. */}
+      {deleteFailed && (
+        <p className={`card ${styles.panel}`} role="alert" style={{ color: 'var(--bad-fg)' }}>
+          <strong>Your account was not deleted.</strong> The confirmation did not complete, and
+          nothing has been removed — everything is exactly as it was. You can try again below.
+          {failureRef && <span className={styles.note}> Reference {failureRef}</span>}
+        </p>
+      )}
+
       {account &&
         (hasPassword(account) ? (
           <ChangePassword onDone={() => router.replace('/login')} />

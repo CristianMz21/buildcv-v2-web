@@ -30,23 +30,34 @@ const SIGN_IN_ERRORS: Record<string, string> = {
   exchange: 'Google could not confirm that sign-in. Please try again.',
   google: 'Google could not complete that sign-in. Please try again.',
   unreachable: 'BuildCv is not answering right now. This is not something you did — try again shortly.',
-  rejected: 'That Google account could not be used to sign in here.',
+  rejected: 'That Google account cannot be used to sign in here.',
 };
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; deleted?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string; ref?: string }>;
 }) {
   if (await readSession()) redirect('/resumes');
 
-  const { error, deleted } = await searchParams;
+  const { error, deleted, ref } = await searchParams;
   const problem = error ? (SIGN_IN_ERRORS[error] ?? 'That sign-in did not work. Please try again.') : null;
 
   // The end of the provider-confirmed deletion. It lands here because the account it belonged to no
   // longer exists — there is nowhere else to go — and without a word the redirect reads as having
   // been signed out by a bug rather than as the thing they just asked for.
   const closed = deleted === '1';
+
+  /*
+   * VALIDATED AS A SHAPE, NOT TRUSTED AS TEXT. `?ref=` arrives in a URL anybody can craft, so it is
+   * rendered only when it looks like the UUID `reach()` mints — otherwise a link could put chosen
+   * text on our own sign-in page, under our own styling, beside a real error message. That is the
+   * cheap half of a phishing page, and the closed map above exists for the same reason.
+   *
+   * A wrong-looking value is dropped in silence rather than complained about: the person reading
+   * this screen did not choose it, and a second error about the first error helps nobody.
+   */
+  const reference = ref && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref) ? ref : null;
 
   return (
     <main className={styles.wrap}>
@@ -67,6 +78,11 @@ export default async function LoginPage({
         {problem && (
           <p className={styles.error} role="alert">
             {problem}
+            {reference && (
+              <span className={styles.reference}>
+                Reference <code>{reference}</code>
+              </span>
+            )}
           </p>
         )}
 

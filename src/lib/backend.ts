@@ -321,7 +321,22 @@ export type LoginOutcome =
    * delegated IPv6 /64. Without it the form can only guess at a wait, and a guess that is short
    * invites the retry that extends the window.
    */
-  | { ok: false; status: number; problem: ProblemDetails; retryAfter: string | null };
+  | {
+      ok: false;
+      status: number;
+      problem: ProblemDetails;
+      retryAfter: string | null;
+      /**
+       * The id the API logged this refusal under, when it answered with one.
+       *
+       * ONLY THE UNREACHABLE CASE CARRIED THIS BEFORE, and the gap was exactly where it hurt most.
+       * `reach()` mints an id and SENDS it, the API writes its line under that same word, and for a
+       * non-2xx this side used to drop it — so a refusal existed in two logs under one id that only
+       * one of them had recorded. An outage is the case you can guess at; a refusal is the case where
+       * the reason lives on the other side of a wall.
+       */
+      correlationId: string | null;
+    };
 
 /**
  * Exchanges credentials for a session. `/v1/auth/login` is `AllowAnonymous` and CSRF-exempt, and it
@@ -397,6 +412,9 @@ async function sessionFrom(response: Response): Promise<LoginOutcome> {
       status: response.status,
       problem: await readProblem(response),
       retryAfter: response.headers.get('Retry-After'),
+      // Read off the answer rather than remembered from the request: the API echoes the id it was
+      // given, so what comes back is proof of which line it wrote rather than a claim about it.
+      correlationId: response.headers.get('x-correlation-id'),
     };
   }
 
@@ -411,6 +429,9 @@ async function sessionFrom(response: Response): Promise<LoginOutcome> {
       status: 502,
       problem: { status: 502, title: 'Bad gateway', detail: 'The API issued no refresh token.' },
       retryAfter: null,
+      // The API ANSWERED here — 2xx, even — so it holds a record of a call that this side then
+      // judged unusable. That disagreement is the whole thing worth being able to look up.
+      correlationId: response.headers.get('x-correlation-id'),
     };
   }
 
