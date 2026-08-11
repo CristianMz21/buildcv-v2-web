@@ -9,11 +9,24 @@ name: CI
 on:
   push:
     branches: [main]
+    # A merge that only tightens prose — a README, a doc, a LICENSE — must not rebuild the image or
+    # publish one, and the artefact checks (`image`, `publish`) are the expensive half of this file.
+    # PRs (below) are untouched: they run everything, every time, because that is where CodeRabbit and
+    # a human are still deciding whether the change is any good. The `docs/**` glob covers a future
+    # docs directory; the explicit files cover what exists today.
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '**/*.md'
   pull_request:
   # Monday morning, because the audit above only answers a question at the moment somebody happens to
   # open a pull request. Advisories are published against code that has not changed — the critical RCE
   # this repo shipped for weeks was disclosed long after the version was pinned — so a repository with
   # no traffic that week would learn nothing. This is the run that has no author waiting on it.
+  #
+  # The schedule answers the same question every week regardless of whether anything merged, so it is
+  # deliberately NOT path-filtered: an advisory does not care that only a README changed.
   schedule:
     - cron: '0 6 * * 1'
 
