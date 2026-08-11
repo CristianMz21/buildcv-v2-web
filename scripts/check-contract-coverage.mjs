@@ -213,6 +213,50 @@ for (const file of globSync('src/**/*.{ts,tsx}')) {
 }
 
 for (const line of dynamic) console.log(`  ? ${line}`);
+
+// ── Claims the UI makes that the contract can falsify ─────────────────────────
+//
+// THE THIRD INSTANCE OF ONE PATTERN IN ONE NIGHT, so it gets a mechanism rather than another comment.
+//
+//   1. The `seo` skill was removed because "everything is behind a session gate" — true until the
+//      landing page shipped, and nothing re-opened the decision.
+//   2. The privacy page said "one third party" from a build-time render — it would have stayed silent
+//      about Google for a year.
+//   3. Settings says "there is no way to verify an email yet — no endpoint sends one", which stops
+//      being true the moment the API grows one.
+//
+// Every one is a sentence that was true when written and had no way of noticing it had stopped being
+// true. This is the same trick as the PENDING waiver above: the contract is the fact, the prose is
+// the claim, and the check fails when they disagree — so the claim cannot outlive its premise
+// quietly.
+const CLAIMS = [
+  {
+    file: 'src/app/(app)/settings/SettingsScreen.tsx',
+    says: 'There is no way to verify an email yet',
+    // Any path that looks like email verification. Matched loosely on purpose: the name is the API's
+    // to choose and this must fire whatever they call it.
+    falsifiedBy: /verif/i,
+    fix: 'the API now serves an email-verification route — rewrite or delete that sentence',
+  },
+];
+
+const claimed = [];
+for (const claim of CLAIMS) {
+  const contradicting = Object.keys(contract.paths ?? {}).filter((p) => claim.falsifiedBy.test(p));
+  if (contradicting.length === 0) continue;
+
+  const text = readFileSync(claim.file, 'utf8');
+  if (text.includes(claim.says)) {
+    claimed.push(`${claim.file}: "${claim.says}…" — ${claim.fix} (${contradicting.join(', ')})`);
+  }
+}
+
+if (claimed.length > 0) {
+  console.error(`${claimed.length} claim(s) the contract now contradicts:\n`);
+  for (const line of claimed) console.error(`  ✗ ${line}`);
+  console.error('');
+}
+
 if (dynamic.length > 0) console.log(`  ${dynamic.length} call(s) built from a variable — not checked\n`);
 
 // THE HALF THAT MAKES THE WAIVER SAFE. An entry whose operation now EXISTS has done its job and must
@@ -256,7 +300,7 @@ if (unserved.length > 0) {
 // has expired would have printed an error and exited 0 — a check reporting a pass while telling you
 // something is wrong, which is the exact failure mode every other assertion in this repo exists to
 // avoid.
-if (missing.length > 0 || unserved.length > 0 || stale.length > 0) process.exit(1);
+if (missing.length > 0 || unserved.length > 0 || stale.length > 0 || claimed.length > 0) process.exit(1);
 
 console.log(`${checked} operation(s) checked against ${CONTRACT} — all declared.`);
 console.log(`${clientChecked} screen call(s) checked against src/app/api — all served.`);
