@@ -15,6 +15,12 @@ reviews:
   review_status: true
   changed_files_summary: true
   sequence_diagrams: false
+  pre_merge_checks:
+    # Comments in this repo exist to carry the WHY, not to raise a docstring count. An 80% coverage
+    # bar would flag every PR for missing JSDoc on a helper whose only legitimate documentation is
+    # the measurement that motivated it — the opposite of what CLAUDE.md asks for.
+    docstrings:
+      mode: "off"
   auto_review:
     enabled: true
     drafts: false
