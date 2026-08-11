@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google';
 
 import { SITE_ORIGIN } from '@/lib/site';
 
+import { ThemeScript } from './ThemeScript';
+
 import './globals.css';
 
 // Self-hosted by next/font at build time. The source design pulled Inter from fonts.googleapis.com
@@ -53,7 +55,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    // `suppressHydrationWarning` on <html> only. The theme script mutates this element's attributes
+    // before React hydrates, so the server's markup and the client's genuinely differ — by design.
+    // Scoped to the one element that changes rather than the tree, so a real mismatch anywhere else
+    // still shouts.
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body>{children}</body>
     </html>
   );

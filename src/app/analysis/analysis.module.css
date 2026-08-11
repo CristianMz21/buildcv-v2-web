@@ -648,8 +648,8 @@
 
 .noticeWarn {
   background: var(--warn-bg);
-  color: #92400e;
-  border: 1px solid #fde68a;
+  color: var(--warn-fg);
+  border: 1px solid var(--warn-border);
 }
 
 .noticeError {

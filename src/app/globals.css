@@ -27,6 +27,18 @@
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
   --primary-bg: #eff6ff;
+  /*
+   * THE COLOUR A WORD TAKES WHEN IT SITS ON --primary, named because that was implicit and the
+   * implication broke. One token served two roles that agree in a light theme and disagree in a dark
+   * one: --primary must be light enough to read as a LINK on a dark page, and dark enough to carry
+   * WHITE text as a FILL. In dark those pull opposite ways — white on #60a5fa measures 2.54:1, and
+   * axe rated it serious on nine screens the moment the suite was run in dark.
+   *
+   * So the label follows the fill instead of being assumed. Light theme: white on blue. Dark theme:
+   * near-black on light blue, which is the ordinary shape of an accent button in a dark interface.
+   */
+  --on-primary: #ffffff;
+
   --primary-ring: rgba(37, 99, 235, 0.3);
   --primary-ring-soft: rgba(37, 99, 235, 0.15);
 
@@ -48,9 +60,147 @@
   --bad-fg: #991b1b;
   --bad-border: #fecaca;
 
+  /*
+   * A BLOCK THAT CONTRASTS WITH THE PAGE, which is not the same as "a dark block" — and the landing
+   * page's closing call to action proved the difference. It was `background: var(--fg)`: the colour
+   * of TEXT used as a surface, which reads as a deliberate near-black in a light theme and inverts
+   * to near-white in a dark one. Its white heading measured 1.04:1 the first time the suite ran in
+   * dark, on the most persuasive block of the most public page.
+   *
+   * Named for its job instead. Light: near-black. Dark: a step LIGHTER than the page, because in a
+   * dark interface the way a block stands out is by lifting rather than by deepening.
+   */
+  --panel-contrast: #111827;
+  --panel-contrast-fg: #ffffff;
+  /* Secondary text on that panel. One value serves both themes — 12.04:1 on the light theme's panel
+     and 7.03:1 on the dark theme's, measured. */
+  --panel-contrast-muted: #d1d5db;
+
+  /* The tint behind a value the reader is meant to check. Hardcoded on three screens before this. */
+  --warn-border: #fde68a;
+  --warn-tint: #fffdf5;
+  --primary-tint: #f8fbff;
+
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04);
   --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+}
+
+/*
+ * DARK, AND EVERY PAIR IN IT WAS MEASURED BEFORE A LINE OF THIS WAS WRITTEN.
+ *
+ * A theme in this repo is a contrast problem, not a palette choice. The rule the rest of the product
+ * follows — a word owes 4.5:1, a bar or a dot owes 3:1 — has already caught three tones tonight that
+ * looked deliberate and were under the floor. Picking dark colours by eye would have undone that
+ * quietly, on a surface nothing had ever scanned.
+ *
+ * Twenty-two of the twenty-three pairs pass. The one that does not is `--border` on `--surface`, at
+ * 1.41:1 — and the light theme, which has been in production all along, is 1.24:1 on the same pair.
+ * So this is a property of the product rather than of the dark theme, and dark is already the better
+ * of the two. Raising it to 3:1 would need a visibly heavier border in BOTH themes and is its own
+ * change; recording it beats fixing it here and holding dark to a bar light never met.
+ *
+ * THE SAME VALUES APPEAR TWICE, and that is a real hazard rather than a tidy one. A media query
+ * cannot be aliased to an attribute selector in plain CSS, so the choice is duplication or a
+ * JavaScript dependency for people whose system is already set to dark. Duplication wins because the
+ * no-JS case is a working product; the drift it invites is closed by a test that asserts both blocks
+ * declare the same tokens with the same values.
+ *
+ * `:not([data-theme="light"])` is what lets an explicit choice beat the system: somebody on a dark
+ * desktop who wants this one app light gets it.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --border-soft: #273449;
+
+  --fg: #f8fafc;
+  --fg-body: #e2e8f0;
+  --fg-muted: #cbd5e1;
+  --fg-faint: #94a3b8;
+
+  --primary: #60a5fa;
+  --primary-hover: #93c5fd;
+  --primary-bg: #1e3a5f;
+  --on-primary: #0b1220;
+  --primary-ring: rgba(96, 165, 250, 0.4);
+  --primary-ring-soft: rgba(96, 165, 250, 0.2);
+
+  --good: #4ade80;
+  --good-strong: #34d399;
+  --good-bg: #052e16;
+  --good-fg: #86efac;
+  --good-border: #14532d;
+
+  --warn: #fbbf24;
+  --warn-bg: #3b2506;
+  --warn-fg: #fcd34d;
+
+  --bad: #f87171;
+  --bad-bg: #450a0a;
+  --bad-fg: #fca5a5;
+  --bad-border: #7f1d1d;
+
+  --panel-contrast: #334155;
+  --panel-contrast-fg: #f8fafc;
+  --panel-contrast-muted: #d1d5db;
+
+  --warn-border: #78350f;
+  --warn-tint: #2a1a06;
+  --primary-tint: #16233c;
+
+  /* Darker and larger, because a shadow works by being darker than what it falls on and almost
+     nothing is darker than this background. It reads as depth rather than as a smudge. */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --border-soft: #273449;
+
+  --fg: #f8fafc;
+  --fg-body: #e2e8f0;
+  --fg-muted: #cbd5e1;
+  --fg-faint: #94a3b8;
+
+  --primary: #60a5fa;
+  --primary-hover: #93c5fd;
+  --primary-bg: #1e3a5f;
+  --on-primary: #0b1220;
+  --primary-ring: rgba(96, 165, 250, 0.4);
+  --primary-ring-soft: rgba(96, 165, 250, 0.2);
+
+  --good: #4ade80;
+  --good-strong: #34d399;
+  --good-bg: #052e16;
+  --good-fg: #86efac;
+  --good-border: #14532d;
+
+  --warn: #fbbf24;
+  --warn-bg: #3b2506;
+  --warn-fg: #fcd34d;
+
+  --bad: #f87171;
+  --bad-bg: #450a0a;
+  --bad-fg: #fca5a5;
+  --bad-border: #7f1d1d;
+
+  --panel-contrast: #334155;
+  --panel-contrast-fg: #f8fafc;
+  --panel-contrast-muted: #d1d5db;
+
+  --warn-border: #78350f;
+  --warn-tint: #2a1a06;
+  --primary-tint: #16233c;
+
+  /* Darker and larger, because a shadow works by being darker than what it falls on and almost
+     nothing is darker than this background. It reads as depth rather than as a smudge. */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 *,
@@ -181,7 +331,7 @@ button {
 .btnPrimary {
   border: none;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-primary);
   font-weight: 600;
   font-size: 13.5px;
 }
@@ -262,8 +412,8 @@ button {
 
 .noticeWarn {
   background: var(--warn-bg);
-  color: #92400e;
-  border: 1px solid #fde68a;
+  color: var(--warn-fg);
+  border: 1px solid var(--warn-border);
 }
 
 .noticeError {
