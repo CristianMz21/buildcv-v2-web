@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { isConfigured as googleSignIn } from '@/lib/google';
+
 import { isComplete, OPERATOR } from '../details';
 import styles from '../legal.module.css';
 import { Unset } from '../Unset';
@@ -81,7 +83,10 @@ export default function PrivacyPage() {
       <section className={styles.section}>
         <h2 className={styles.heading}>Who else your data passes through</h2>
         <p className={styles.body}>
-          <strong>One company, and it is worth being exact about it.</strong> Traffic to this site
+          <strong>
+            {googleSignIn() ? 'Two companies, and both are worth being exact about.' : 'One company, and it is worth being exact about it.'}
+          </strong>{' '}
+          Traffic to this site
           reaches us through Cloudflare, which filters automated abuse and denial-of-service attacks
           before requests arrive. Cloudflare terminates the encrypted connection, which means that in
           transit it is technically able to see what you send &mdash; including a CV you are saving.
@@ -94,6 +99,36 @@ export default function PrivacyPage() {
           data cross a third party at all, that is a reasonable position and this is the paragraph
           that lets you make the choice.
         </p>
+        {/*
+          THE SAME PREDICATE THE BUTTON READS. `googleSignIn()` is `isConfigured()` from
+          `src/lib/google.ts`, which is also what decides whether the sign-in screens offer Google at
+          all — so this page cannot describe a third party that is not there, and cannot stay silent
+          about one that is. They are not two flags kept in step; they are one question asked twice.
+
+          That matters because this page has already been wrong in exactly this way. It said there
+          was no third party for about an hour while Cloudflare was terminating candidates' TLS,
+          because the disclosure and the change that needed it were in separate pull requests.
+        */}
+        {googleSignIn() && (
+          <>
+            <p className={styles.body}>
+              <strong>Google, but only if you choose it.</strong> You can sign in with a Google
+              account instead of a password. If you do, Google learns that you use BuildCv and when
+              you signed in &mdash; that is unavoidable, because your browser has to visit Google to
+              prove the account is yours. We receive your email address and a stable identifier
+              Google uses for your account, and nothing else: not your name, not your picture, not
+              your contacts. Your CV is never sent to Google and Google is not involved once you are
+              signed in.
+            </p>
+            <p className={styles.body}>
+              <strong>You never have to use it.</strong> Signing in with an email and a password
+              works exactly as well and involves Google not at all. If you would rather Google not
+              know you use this service, use the password form &mdash; that is the entire reason both
+              are offered.
+            </p>
+          </>
+        )}
+
         <p className={styles.body}>
           <strong>Beyond that, nothing.</strong> No analytics, no advertising, no error-reporting
           service, no AI provider. Your CV is never sold, never used to train anything, and never

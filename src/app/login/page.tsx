@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 
 import { readSession } from '@/lib/session';
 
+import { GoogleButton } from '../GoogleButton';
+
 import { LoginForm } from './LoginForm';
 import styles from './login.module.css';
 
@@ -11,8 +13,35 @@ import styles from './login.module.css';
 // root layout's bare "BuildCv" — so a tab restored a week later said nothing about what it held.
 export const metadata: Metadata = { title: 'Sign in' };
 
-export default async function LoginPage() {
+/**
+ * What went wrong on the way back from Google, said in a sentence rather than in a code.
+ *
+ * A CLOSED MAP, NOT THE QUERY STRING RENDERED. `?error=` is attacker-controlled — anyone can send
+ * somebody a link to /login?error=<anything> — so echoing it would put chosen text on our own
+ * sign-in page under our own banner styling, which is the cheap half of a phishing page. An unknown
+ * value falls through to the generic sentence.
+ *
+ * Every one of these is a case where trying again genuinely is the right advice, which is why they
+ * all say so. What differs is whether it is worth mentioning Google at all.
+ */
+const SIGN_IN_ERRORS: Record<string, string> = {
+  state: 'That sign-in link had expired or did not start here. Please try again.',
+  incomplete: 'That sign-in did not finish. Please try again.',
+  exchange: 'Google could not confirm that sign-in. Please try again.',
+  google: 'Google could not complete that sign-in. Please try again.',
+  unreachable: 'BuildCv is not answering right now. This is not something you did — try again shortly.',
+  rejected: 'That Google account could not be used to sign in here.',
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   if (await readSession()) redirect('/resumes');
+
+  const { error } = await searchParams;
+  const problem = error ? (SIGN_IN_ERRORS[error] ?? 'That sign-in did not work. Please try again.') : null;
 
   return (
     <main className={styles.wrap}>
@@ -23,6 +52,17 @@ export default async function LoginPage() {
           </span>
           <h1 className={styles.title}>Sign in to BuildCv</h1>
         </div>
+
+        {problem && (
+          <p className={styles.error} role="alert">
+            {problem}
+          </p>
+        )}
+
+        {/* ABOVE the email form, because it is the faster path and burying it below the thing it
+            replaces is how a shortcut goes unnoticed. It renders nothing at all when Google is not
+            configured — see `GoogleButton`. */}
+        <GoogleButton verb="Sign in" />
 
         <LoginForm />
 

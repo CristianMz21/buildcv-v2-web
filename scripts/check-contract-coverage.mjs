@@ -69,13 +69,51 @@ for (const [path, operations] of Object.entries(contract.paths ?? {})) {
   declared.set(key, new Set([...(declared.get(key) ?? []), ...methods]));
 }
 
+/**
+ * Operations this app calls that the API has not built yet.
+ *
+ * AN EXCEPTION THAT EXPIRES BY ITSELF, which is the only kind worth having. Each entry is checked
+ * against the contract in BOTH directions: while the operation is absent it is tolerated and named,
+ * and the moment it appears the entry becomes an ERROR telling you to delete it. A waiver that
+ * outlives its reason is indistinguishable from a bug, and this one cannot.
+ *
+ * The alternative was leaving `contract:coverage` red on main, and CLAUDE.md is explicit about why
+ * that is worse: a check wired into CI while failing teaches the reader that a red check is normal.
+ * That is the whole reason this check was not a CI job until the drift was closed.
+ */
+const PENDING = [
+  {
+    method: 'post',
+    path: '/auth/external',
+    why:
+      'Google sign-in. The BFF half is built and dormant — the button renders only where GOOGLE_CLIENT_ID\n' +
+      '     is set, which is nowhere in production yet. The API needs to verify a Google id_token against\n' +
+      "     Google's JWKS and issue the same session /auth/login does. Owned by the buildcv-v2 session.",
+  },
+];
+
 const sources = globSync('src/**/*.ts', { exclude: (p) => p.includes('api-schema.d.ts') });
 
-// `apiPost` and `anonymousPost` are POST by their names. `apiFetch` carries whatever `method` its
-// init object states and is a GET when it states none — the same defaulting `fetch` itself does.
-const CALL = /\b(apiPost|anonymousPost|apiFetch)\(\s*[`'"]([^`'"]*)[`'"]([\s\S]{0,220})/g;
+// `apiPost` and `anonymousPost` are POST by their names. `apiFetch` and `apiUrl` carry whatever
+// `method` the init object beside them states, and are a GET when it states none — the same
+// defaulting `fetch` itself does.
+//
+// `apiUrl` IS IN THIS LIST AND ITS ABSENCE WAS A HOLE THIS CHECK COULD NOT SEE PAST. The three
+// helpers are not the only way to reach the API: the anonymous paths and the refresh call use
+// `reach(apiUrl('/…'))` directly, because they cannot go through a wrapper that requires a session.
+// So `/auth/login` — the single most important operation in the product — and `/auth/refresh` were
+// never checked against the contract at all, and the number this script printed was a count of the
+// calls it happened to recognise rather than of the calls that exist.
+//
+// It is the same lesson written thirty lines below about the other hop: match the thing that
+// CONSTRUCTS the address, not the thing that sends it. `apiUrl` is the one function that turns a path
+// into an API URL, so matching it catches every caller by construction — including ones nobody has
+// written yet.
+const CALL = /\b(apiPost|anonymousPost|apiFetch|apiUrl)\(\s*[`'"]([^`'"]*)[`'"]([\s\S]{0,220})/g;
 
 const missing = [];
+const waived = [];
+const stale = [];
 const dynamic = [];
 let checked = 0;
 
@@ -92,7 +130,9 @@ for (const file of sources) {
     }
 
     const method =
-      fn === 'apiFetch' ? (tail.match(/method:\s*['"]([A-Za-z]+)['"]/)?.[1] ?? 'get').toLowerCase() : 'post';
+      fn === 'apiFetch' || fn === 'apiUrl'
+        ? (tail.match(/method:\s*['"]([A-Za-z]+)['"]/)?.[1] ?? 'get').toLowerCase()
+        : 'post';
 
     // One call site becomes ten operations when it names a section, and every one of them has to be
     // declared — a gate that admits a name the API does not serve is a 404 the closed list promised
@@ -106,6 +146,13 @@ for (const file of sources) {
       checked += 1;
 
       const methods = declared.get(key);
+
+      // Waived, but counted and printed — never skipped in silence.
+      if (PENDING.some((p) => p.method === method && p.path === path) && !methods?.has(method)) {
+        waived.push(`${method.toUpperCase()} ${path}`);
+        continue;
+      }
+
       if (!methods) missing.push(`${method.toUpperCase()} ${path} — no such path in ${CONTRACT}`);
       else if (!methods.has(method)) {
         missing.push(
@@ -173,6 +220,29 @@ for (const file of globSync('src/**/*.{ts,tsx}')) {
 for (const line of dynamic) console.log(`  ? ${line}`);
 if (dynamic.length > 0) console.log(`  ${dynamic.length} call(s) built from a variable — not checked\n`);
 
+// THE HALF THAT MAKES THE WAIVER SAFE. An entry whose operation now EXISTS has done its job and must
+// go, or the next person reads a list of "pending" work that shipped weeks ago and stops believing it.
+for (const entry of PENDING) {
+  if (declared.get(shape(entry.path))?.has(entry.method)) {
+    stale.push(`${entry.method.toUpperCase()} ${entry.path} — now in ${CONTRACT}; delete this PENDING entry`);
+  }
+}
+
+if (waived.length > 0) {
+  console.log(`${waived.length} operation(s) waived as pending on the API:\n`);
+  for (const line of waived) {
+    const entry = PENDING.find((p) => `${p.method.toUpperCase()} ${p.path}` === line);
+    console.log(`  ~ ${line}\n     ${entry?.why ?? ''}`);
+  }
+  console.log('');
+}
+
+if (stale.length > 0) {
+  console.error(`${stale.length} stale waiver(s):\n`);
+  for (const line of stale) console.error(`  ✗ ${line}`);
+  console.error('');
+}
+
 if (missing.length > 0) {
   console.error(`${missing.length} operation(s) called but not in ${CONTRACT}:\n`);
   for (const line of missing) console.error(`  ✗ ${line}`);
@@ -187,7 +257,11 @@ if (unserved.length > 0) {
   for (const line of unserved) console.error(`  ✗ ${line}`);
 }
 
-if (missing.length > 0 || unserved.length > 0) process.exit(1);
+// `stale` is in here, and leaving it out is a bug this script nearly shipped. A waiver whose reason
+// has expired would have printed an error and exited 0 — a check reporting a pass while telling you
+// something is wrong, which is the exact failure mode every other assertion in this repo exists to
+// avoid.
+if (missing.length > 0 || unserved.length > 0 || stale.length > 0) process.exit(1);
 
 console.log(`${checked} operation(s) checked against ${CONTRACT} — all declared.`);
 console.log(`${clientChecked} screen call(s) checked against src/app/api — all served.`);

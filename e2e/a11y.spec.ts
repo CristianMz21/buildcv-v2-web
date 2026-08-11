@@ -231,6 +231,47 @@ test('the password reveal shows the password and announces its state', async ({ 
 });
 
 /**
+ * "Continue with Google" is a LINK, and it has to behave like one.
+ *
+ * It is written as an anchor rather than a button with a click handler because what it does is
+ * navigate — `connect-src 'self'` forbids the browser from calling Google at all, which is the whole
+ * reason this flow is a server-side redirect. That decision has consequences a stylesheet can undo:
+ * an anchor styled to look like a button collapses to the height of its text unless something says
+ * otherwise, and a 14px tap target is one most people miss on a phone.
+ *
+ * The screens only render it when Google is configured, which is why `playwright.config.ts` supplies
+ * placeholder credentials — without them this suite would scan a sign-in page that does not have the
+ * control and call it clean.
+ */
+for (const screen of [
+  { name: 'sign in', path: '/login' },
+  { name: 'register', path: '/register' },
+]) {
+  test(`the Google link on ${screen.name} is a real, reachable link`, async ({ page }) => {
+    await page.goto(screen.path);
+
+    const link = page.getByRole('link', { name: 'Continue with Google' });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute('href', '/api/auth/google');
+
+    // Big enough to hit. 44px is the figure WCAG 2.2 names for a target, and it is the exact number
+    // an unstyled anchor fails.
+    const box = await link.boundingBox();
+    expect(box?.height ?? 0, 'the Google link must be a full-height target').toBeGreaterThanOrEqual(44);
+
+    // Focusable and visibly focused — the same claim the sign-in sweep makes for inputs and buttons,
+    // asserted here because an anchor is the element most likely to lose its ring to a reset.
+    await link.focus();
+    const ring = await link.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { width: style.outlineWidth, style: style.outlineStyle, shadow: style.boxShadow };
+    });
+    const outlined = ring.style !== 'none' && parseFloat(ring.width) > 0;
+    expect(outlined || (ring.shadow !== 'none' && ring.shadow !== ''), 'the Google link needs a visible focus ring').toBe(true);
+  });
+}
+
+/**
  * Focus has to be VISIBLE, and axe cannot tell you that.
  *
  * axe checks contrast, names and roles from the DOM; whether a control shows where the keyboard is
