@@ -39,3 +39,8 @@ playwright-report/
 # gentle-ai's skill registry. Machine-specific — it records absolute paths from the host that
 # generated it.
 .atl/
+
+# Conversation / session exports. These carry the whole chat, and landing in a PUBLIC repo would
+# publish the conversation itself — not just code. Ignore by pattern, so the next export is covered
+# the moment it is written rather than the moment somebody thinks to add it.
+*-this-session-is-being-continued-from-a-previous-*.txt
