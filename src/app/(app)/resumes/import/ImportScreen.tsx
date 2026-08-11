@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Check, Upload, Warning } from '@/components/icons';
-import type { ResumeSummaryResponse } from '@/lib/contracts';
+import type { ProposeResumeDraftResponse, ResumeSummaryResponse } from '@/lib/contracts';
 import { fieldErrorsOf, messageOf, readJson, SessionExpired } from '@/lib/http';
 
 import { CONTACT_FIELDS, DRAFT_SECTIONS, fieldPath, type DraftField } from './draftShape';
@@ -13,14 +13,14 @@ import styles from './import.module.css';
 
 type Draft = Record<string, unknown>;
 
-interface Proposal {
-  draft: Draft;
-  confidence: {
-    overall: string;
-    fields: { path: string; confidence: string; sourceText: string | null }[];
-    warnings: string[];
-  };
-}
+/**
+ * The proposal, taken from the contract rather than described again here.
+ *
+ * The shape used to be written inline. That is an assertion about the API, not a check of it: a field
+ * added upstream never arrives, and one renamed upstream reads as `undefined` without a word from
+ * `tsc`. `draft` stays loose on purpose — it is the whole CV, edited as an opaque tree by path.
+ */
+type Proposal = Omit<ProposeResumeDraftResponse, 'draft'> & { draft: Draft };
 
 const ACCEPTED = '.pdf,.docx,.txt';
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.txt'];

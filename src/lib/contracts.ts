@@ -189,6 +189,24 @@ export type JobPostingResponse = Narrow<
  * to `NiceToHave` and marks it guessed rather than reading one out of the text. Posting a proposal
  * straight back accepts those guesses on the candidate's behalf.
  */
+/**
+ * What the importer read, how sure it is, and — when there is one — what it proposes instead.
+ *
+ * EXPORTED SO THE REVIEW SCREEN STOPS DECLARING IT BY HAND. `ImportScreen` carried its own
+ * structural copy — `{ path, confidence, sourceText }` written inline — which is an assertion about
+ * the API rather than a check of it. Two ways that goes wrong, and one of them is imminent: a field
+ * ADDED upstream never reaches the screen because the local type does not mention it, and a field
+ * RENAMED upstream reads as `undefined` in silence, because a structural type that names three
+ * properties is satisfied by an object that happens to have them.
+ *
+ * The API is adding `suggestion` to this shape on a branch right now. Taken from the generated type,
+ * it arrives with the next `pnpm gen:api` and `tsc` can see it; hand-written, it would have needed
+ * somebody to notice.
+ */
+export type FieldConfidenceResponse = Schemas['FieldConfidenceResponse'];
+export type DraftConfidenceResponse = Schemas['DraftConfidenceResponse'];
+export type ProposeResumeDraftResponse = Schemas['ProposeResumeDraftResponse'];
+
 export type ProposedRequirementResponse = Narrow<
   Schemas['ProposedRequirementResponse'],
   'priority',
