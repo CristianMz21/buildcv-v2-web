@@ -6,6 +6,8 @@ import { useEffect, useState } from 'react';
 import type { ProblemDetails } from '@/lib/contracts';
 import { waitFor } from '@/lib/http';
 
+import { PasswordField } from '../PasswordField';
+
 import styles from '../login/login.module.css';
 
 /**
@@ -107,24 +109,19 @@ export function ResetPasswordForm() {
         </p>
       )}
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor="new-password">
-          New password
-        </label>
-        <input
-          id="new-password"
-          className={styles.input}
-          type="password"
-          autoComplete="new-password"
-          required
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </div>
-
-      <p className={styles.hint}>
-        A password this server refuses does not use up your link — you can try another one here.
-      </p>
+      {/* Being able to READ what you typed matters more here than anywhere else in the product: a
+          reset link is single-use in the reader's mind, so a typo they cannot see is the difference
+          between getting back in and giving up. The line below says it is not, which is true and
+          worth saying — but it is a reassurance, and being able to look is the actual fix. */}
+      <PasswordField
+        id="new-password"
+        label="New password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        withStrength
+        hint="A password this server refuses does not use up your link — you can try another one here."
+      />
 
       <button className="btn btnPrimary btnLarge" type="submit" disabled={pending || password === ''}>
         {pending ? 'Setting…' : 'Set my password'}

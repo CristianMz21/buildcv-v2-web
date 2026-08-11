@@ -83,3 +83,121 @@
   font: 400 12px/1.6 var(--font);
   color: var(--fg-faint);
 }
+
+/* ── Password field ───────────────────────────────────────────────────────── */
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+/* Sits opposite the label — "Forgot password?" on sign-in. Small, but not smaller than the 12px
+   floor this file uses elsewhere, and it takes --accent rather than a muted tone because it is a
+   link somebody is looking for at their least patient moment. */
+.aside {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.aside:hover {
+  text-decoration: underline;
+}
+
+.passwordWrap {
+  position: relative;
+}
+
+.inputWithButton {
+  padding-right: 44px;
+}
+
+.reveal {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+
+.reveal:hover {
+  background: var(--border-soft);
+  color: var(--fg);
+}
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.meterBars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+/* --border-soft, not --border. The contrast a fill owes is measured against the UNFILLED bar beside
+   it, not against the card, and the darker grey ate enough of it that two of the four tones fell
+   under 3:1. Measured on both: --good 2.66:1 and --warn 2.57:1 against --border; 3.01:1 and 2.91:1
+   against --border-soft. Lightening the track was necessary and, on its own, not sufficient. */
+.meterBar {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--border-soft);
+}
+
+/*
+ * A bar owes 3:1, not the 4.5:1 a word owes — so the vivid tone is the right instinct, and it is what
+ * this repo's rule says. THAT RULE ASSUMES THE FILL SITS ON WHITE. Here it sits on a grey track,
+ * which costs roughly a tenth of the ratio, and the two tones nearest the line fall through it.
+ *
+ * Measured against --border-soft: --bad 4.41:1 and --primary 4.72:1 keep their vivid tokens. --warn
+ * is 2.91:1 and is replaced by --warn-fg at 6.47:1. --good is 3.01:1 — it passes, and passing by
+ * 0.01 is not a margin any future token nudge would survive, so it takes --good-strong at 3.44:1.
+ *
+ * The label beside them is deliberately NOT coloured to match: as text it would owe 4.5:1, and
+ * --warn is 3.19:1 even on white. It stays --fg-muted.
+ */
+.meterFill1 {
+  background: var(--bad);
+}
+
+.meterFill2 {
+  background: var(--warn-fg);
+}
+
+.meterFill3 {
+  background: var(--primary);
+}
+
+.meterFill4 {
+  background: var(--good-strong);
+}
+
+/* The same tone as `.hint` without its 16px top margin — inside a field the parent's gap already
+   spaces it, and the loose `.hint` was being used here with an inline `margin: 0` override. */
+.fieldHint {
+  font: 400 12px/1.6 var(--font);
+  color: var(--fg-faint);
+}
+
+.meterLabel {
+  font: 500 12px var(--font);
+  color: var(--fg-muted);
+  min-width: 44px;
+  text-align: right;
+}

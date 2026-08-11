@@ -69,6 +69,163 @@ for (const screen of PUBLIC_SCREENS) {
 }
 
 /**
+ * The strength meter, scanned in the only state where it exists.
+ *
+ * THE SEVEN SCANS ABOVE PASSED WITHOUT EVER SEEING IT. It renders only once the field has a value,
+ * so every one of those runs loaded `/register` with an empty form and reported a clean sheet on a
+ * component that was not in the DOM. That is the shape of failure this repo keeps producing: a green
+ * check on something the check never looked at. Typing a password is what puts it on the page.
+ *
+ * WHAT THESE FOUR ACTUALLY COVER, stated precisely, because the obvious reading is wrong. The four
+ * bars carry `aria-hidden`, and axe skips hidden subtrees for colour-contrast — so these scans do
+ * NOT measure the fills. What they do prove is that each of the four scores is reachable from a real
+ * password, that the label names it, and that the page stays clean with the meter in the DOM. The
+ * fills are measured by the test below instead, for the same reason the focus ring is: axe cannot.
+ */
+const STRENGTHS = [
+  { label: 'Weak', password: 'aaaaaaaa' }, // 8 chars, letters only
+  { label: 'Fair', password: 'aaaaaaaa1' }, // + a digit beside letters
+  { label: 'Good', password: 'aaaaaaaaaaaa1' }, // + past twelve
+  { label: 'Strong', password: 'aaaaaaaaaaaa1!' }, // + a symbol
+] as const;
+
+for (const strength of STRENGTHS) {
+  test(`the ${strength.label} strength meter meets WCAG AA`, async ({ page }) => {
+    await page.goto('/register');
+    await page.locator('#password').fill(strength.password);
+
+    // Asserts the RATING, not merely that something appeared. Four passwords that all happened to
+    // score the same would scan one fill class four times and report four passes — which is this
+    // file's own failure mode, dressed up as extra coverage.
+    await expect(page.getByText(strength.label, { exact: true })).toBeVisible();
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(WCAG_AA)
+      .exclude('nextjs-portal')
+      .exclude('#next-logo')
+      .analyze();
+
+    expect(
+      violations.flatMap((v) =>
+        v.nodes.map((node) => `${v.id} (${v.impact}) at ${node.target.join(' ')} — ${node.failureSummary?.replace(/\s+/g, ' ').trim()}`),
+      ),
+      `the ${strength.label} meter must have no WCAG AA violations`,
+    ).toEqual([]);
+  });
+}
+
+/**
+ * A filled bar has to be distinguishable from an unfilled one.
+ *
+ * The bars are `aria-hidden` and the text label says the same thing, so they are decorative and
+ * exempt from WCAG 1.4.11 — which is exactly why nothing automated will ever look at them. That
+ * exemption is about the standard, not about whether the thing works: a fill the same tone as its
+ * track is a meter that silently shows nothing to everyone who is not using a screen reader, and it
+ * would pass all thirteen checks above.
+ *
+ * 3:1 is the line a non-text indicator owes, and it is the line this repo's tokens table already
+ * applies to bars and dots — see `TONES` in `src/lib/format.ts`, where three of five bands were
+ * failing it until somebody measured.
+ */
+for (const strength of STRENGTHS) {
+  test(`the ${strength.label} bars are distinguishable from the track`, async ({ page }) => {
+    await page.goto('/register');
+    await page.locator('#password').fill(strength.password);
+    await expect(page.getByText(strength.label, { exact: true })).toBeVisible();
+
+    // ONE PASSWORD EXERCISES ONE TONE. Every filled bar takes the class of the CURRENT score, so a
+    // single run measures a single token and would have reported four passes for the green alone —
+    // which is what the first version of this test did, and it is why it runs four times.
+    const ratios = await page.locator('main').evaluate((main) => {
+    // sRGB relative luminance, per WCAG. Written here rather than imported because it has to run
+    // inside the page, where the computed colours actually exist.
+    const luminance = (colour: string): number => {
+      const [r = 0, g = 0, b = 0] = (colour.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+      const channel = (value: number) => {
+        const v = value / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    };
+
+      const colours = Array.from(main.querySelectorAll('span'))
+        .filter((span) => getComputedStyle(span).height === '4px')
+        .map((span) => getComputedStyle(span).backgroundColor);
+
+      // The track is resolved through the browser rather than compared as a hex string: the DOM
+      // reports `rgb(...)` and the token is written `#f1f5f9`, so a direct comparison would find no
+      // unfilled bar anywhere and silently treat every bar as filled.
+      const probe = document.createElement('span');
+      probe.style.color = getComputedStyle(document.documentElement)
+        .getPropertyValue('--border-soft')
+        .trim();
+      main.appendChild(probe);
+      const track = getComputedStyle(probe).color;
+      probe.remove();
+
+      const trackLuminance = luminance(track);
+
+      return {
+        bars: colours.length,
+        // At Strong every bar is filled and none of them is the track, which is why the track is
+        // taken from the token rather than from whichever bar happens to be unlit.
+        filled: colours
+          .filter((colour) => colour !== track)
+          .map((colour) => {
+            const fill = luminance(colour);
+            const lighter = Math.max(fill, trackLuminance);
+            const darker = Math.min(fill, trackLuminance);
+            return { colour, ratio: Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2)) };
+          }),
+      };
+    });
+
+    expect(ratios.bars, 'the meter should draw four bars').toBe(4);
+
+    // The drawing has to agree with the word beside it. A meter that says "Good" and lights two bars
+    // is telling two different people two different things.
+    expect(ratios.filled.length, `${strength.label} should light ${STRENGTHS.indexOf(strength) + 1} bars`).toBe(
+      STRENGTHS.indexOf(strength) + 1,
+    );
+
+    expect(
+      ratios.filled
+        .filter((bar) => bar.ratio < 3)
+        .map((bar) => `${bar.colour} is ${bar.ratio}:1 on the track`),
+      'a filled bar must reach 3:1 against the unfilled track',
+    ).toEqual([]);
+  });
+}
+
+/**
+ * Revealing a password must actually reveal it, and say so.
+ *
+ * The toggle is the reason this component exists — a masked field on a phone keyboard is where
+ * sign-in attempts go to die. Its `type` flip and its changing label are two separate promises, and
+ * a state-dependent `aria-label` is the kind of thing that silently stops updating during a refactor
+ * while the icon keeps changing and everything still LOOKS right.
+ */
+test('the password reveal shows the password and announces its state', async ({ page }) => {
+  await page.goto('/login');
+
+  const field = page.locator('#password');
+  await field.fill('correct horse battery');
+
+  const toggle = page.getByRole('button', { name: 'Show password' });
+  await expect(field).toHaveAttribute('type', 'password');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+  await toggle.click();
+
+  await expect(field).toHaveAttribute('type', 'text');
+  const pressed = page.getByRole('button', { name: 'Hide password' });
+  await expect(pressed).toHaveAttribute('aria-pressed', 'true');
+
+  await pressed.click();
+  await expect(field).toHaveAttribute('type', 'password');
+});
+
+/**
  * Focus has to be VISIBLE, and axe cannot tell you that.
  *
  * axe checks contrast, names and roles from the DOM; whether a control shows where the keyboard is
