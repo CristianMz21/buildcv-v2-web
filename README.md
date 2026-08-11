@@ -1,8 +1,8 @@
 # BuildCv web
 
 **License: [Elastic License 2.0](LICENSE) — source-available, not OSI open source.** The code is public
-and readable, but no one may offer it as a hosted or managed service. See the LICENSE file for the exact
-terms.
+and readable, but no one may offer it as a hosted or managed service where third parties get access to
+a substantial set of its features. See the LICENSE file for the exact terms.
 
 Next.js App Router client for `BuildCv.Api`, running as a **BFF**. It covers both halves of what the
 product promises — the match score against a posting, and the readability score a CV gets on its own —
