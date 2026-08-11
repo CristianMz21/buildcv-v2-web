@@ -185,10 +185,27 @@ export class ApiTimeoutError extends ApiUnreachableError {
  * reset for a minute. The global limiter is worse and quieter: 100 requests a minute for EVERYONE,
  * across every endpoint, which a dozen people browsing will reach without doing anything unusual.
  *
- * THE LAST HOP, NOT THE FIRST. A proxy appends the peer it saw, so the final entry is the one the
- * trusted proxy observed and the only one a caller cannot choose. Reading the first would let anyone
- * set `X-Forwarded-For` and mint a fresh rate-limit bucket per request — strictly worse than the
- * shared bucket this fixes, because today's problem is at least visible.
+ * `CF-Connecting-IP` FIRST, AND THE REASON IS MEASURED. Azure's external ingress does not append to
+ * `X-Forwarded-For`, it **replaces** it with the address it sees — so once Cloudflare is in front, the
+ * only thing that header can ever say is "Cloudflare". Reading its last hop then hands the API an edge
+ * address, and every person behind the same Cloudflare PoP shares one rate-limit bucket. That is the
+ * original bug moved one layer out, and it is this file's to fix, because the API partitions on
+ * whatever this function chooses to send.
+ *
+ * Cloudflare sets `CF-Connecting-IP` to the real client and **refuses any request that arrives with a
+ * client-supplied one**: a forged `CF-Connecting-IP: 7.7.7.7` answers 403 from `server: cloudflare` in
+ * plain text, while the identical request without it reaches the API and answers 400. So the header
+ * cannot be forged from outside, which is the property that makes it safe to prefer.
+ *
+ * `True-Client-IP` is NOT protected the same way — the same probe carrying a forged one passed
+ * straight through to a 400. It is Enterprise-only on Cloudflare and forgeable here, so it is
+ * deliberately not read.
+ *
+ * THE LAST HOP OF THE FALLBACK, NOT THE FIRST. Where no `CF-Connecting-IP` exists, a proxy appends the
+ * peer it saw, so the final entry is the one the trusted proxy observed and the only one a caller
+ * cannot choose. Reading the first would let anyone set `X-Forwarded-For` and mint a fresh bucket per
+ * request — strictly worse than the shared bucket this fixes, because today's problem is at least
+ * visible.
  *
  * OFF UNLESS `BUILDCV_TRUST_PROXY=1`, and the reason is measured rather than assumed. **Next passes a
  * client-supplied `X-Forwarded-For` through unchanged — it does not append the socket address.** Sent
@@ -205,7 +222,15 @@ async function clientAddress(): Promise<string | null> {
   if (process.env.BUILDCV_TRUST_PROXY !== '1') return null;
 
   try {
-    const forwarded = (await requestHeaders()).get('x-forwarded-for');
+    const incoming = await requestHeaders();
+
+    // Cloudflare's own, unforgeable because Cloudflare refuses a request that carries one. A single
+    // value rather than a chain, so there is no hop to count and nothing for an intermediate rewrite
+    // to truncate.
+    const cloudflare = incoming.get('cf-connecting-ip')?.trim();
+    if (cloudflare) return cloudflare;
+
+    const forwarded = incoming.get('x-forwarded-for');
     if (!forwarded) return null;
 
     const hops = forwarded

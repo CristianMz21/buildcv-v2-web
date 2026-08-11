@@ -179,6 +179,18 @@ The consequences that constrain new code:
   relay(await apiPost(...)))`. `relay` passes status, body and `content-type` through unchanged so the
   API's ProblemDetails — including the `errors` map keyed by field path — reaches the form that needs
   it. `Retry-After` and `X-Correlation-ID` are copied across; nothing else is.
+- **The client's address comes from `CF-Connecting-IP`, and `X-Forwarded-For` is only the fallback.**
+  The API rate-limits on whatever this BFF forwards, so the choice made in `clientAddress()` decides
+  whether users can be told apart at all. **Azure's external ingress replaces `X-Forwarded-For` rather
+  than appending to it** — measured from the other side: the chain the API receives is always exactly
+  two entries with nothing unconsumed, whatever a caller sends. With Cloudflare in front that header
+  can therefore only ever say "Cloudflare", and reading its last hop puts every person behind one PoP
+  in a single bucket.
+
+  `CF-Connecting-IP` is safe to prefer because **Cloudflare refuses a request that carries one**: a
+  forged `CF-Connecting-IP: 7.7.7.7` answers 403 from `server: cloudflare` in plain text, while the
+  identical request without it reaches the API and answers 400. `True-Client-IP` is **not** protected —
+  the same probe with a forged one passed straight through — so it is deliberately never read.
 - **`X-Correlation-ID` is sent upstream, not only read back.** `reach()` mints one per call, so the
   API — which honours an inbound id rather than minting its own — writes its log line under the same
   word this side uses. It matters most exactly where copying fails: a call the API never answers has
