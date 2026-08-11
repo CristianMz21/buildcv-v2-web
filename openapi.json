@@ -148,6 +148,77 @@
         }
       }
     },
+    "/v1/auth/external": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Signs in with an external identity provider, creating the account if needed.",
+        "description": "The body carries the provider's identity token verbatim; this API verifies its signature against the provider's published keys and checks the audience, so a token minted for another application is refused. An address the provider has not verified is refused too.\n\nA provider address matching an existing password account signs INTO that account rather than creating a second one. An address already linked to a DIFFERENT identity at the same provider is refused: provider addresses can be reassigned, and the previous holder's data is not the new holder's.\n\nEvery refusal answers the same message and the same status, so no caller learns whether an address is registered here.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalSignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -5523,7 +5594,8 @@
           "status",
           "isEmailVerified",
           "createdAt",
-          "lastLoginAt"
+          "lastLoginAt",
+          "signInMethods"
         ],
         "type": "object",
         "properties": {
@@ -5553,6 +5625,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "signInMethods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -6296,6 +6374,18 @@
         "properties": {
           "currentPassword": {
             "type": "string"
+          },
+          "externalProvider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "externalIdToken": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6411,6 +6501,21 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "ExternalSignInRequest": {
+        "required": [
+          "provider",
+          "idToken"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "idToken": {
+            "type": "string"
           }
         }
       },

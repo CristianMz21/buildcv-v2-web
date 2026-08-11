@@ -36,12 +36,17 @@ const SIGN_IN_ERRORS: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; deleted?: string }>;
 }) {
   if (await readSession()) redirect('/resumes');
 
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
   const problem = error ? (SIGN_IN_ERRORS[error] ?? 'That sign-in did not work. Please try again.') : null;
+
+  // The end of the provider-confirmed deletion. It lands here because the account it belonged to no
+  // longer exists — there is nowhere else to go — and without a word the redirect reads as having
+  // been signed out by a bug rather than as the thing they just asked for.
+  const closed = deleted === '1';
 
   return (
     <main className={styles.wrap}>
@@ -52,6 +57,12 @@ export default async function LoginPage({
           </span>
           <h1 className={styles.title}>Sign in to BuildCv</h1>
         </div>
+
+        {closed && (
+          <p className={styles.note} role="status">
+            Your account and everything in it has been deleted. Nothing was kept.
+          </p>
+        )}
 
         {problem && (
           <p className={styles.error} role="alert">
