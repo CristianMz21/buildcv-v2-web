@@ -145,7 +145,7 @@ pass "no X-Powered-By"
 
 cleanup
 
-# ── 6. The Google disclosure follows the Google button, IN THE BUILT IMAGE ────
+# ── 4. The Google disclosure follows the Google button, IN THE BUILT IMAGE ────
 #
 # THIS SECTION EXISTS BECAUSE THE GATE IT CHECKS WAS ALREADY BROKEN ONCE, IN PRODUCTION, WHILE EVERY
 # OTHER CHECK WAS GREEN. The sign-in screens and the privacy page read one predicate — whether Google
@@ -157,15 +157,38 @@ cleanup
 #
 # It was verified against `next dev`, where every page is dynamic and the two agreed. Only the image
 # disagrees, which is why the check belongs here and nowhere else.
+#
+# `settle` IS NOT ENOUGH FOR THESE, and finding that out cost a red CI run against a green laptop.
+# It waits for `/api/health` to answer anything at all — a route handler that returns a constant — so
+# it proves the process is listening and nothing more. These assertions read a rendered PAGE, and on
+# a slower machine the first request for one can arrive before the server will serve it: the check
+# then reports "the sign-in screen does not offer Google" about a screen that was never rendered.
+#
+# Same shape as the deployment race this repo already fixed once: establish that you are measuring
+# the right thing before measuring it.
+serving() {
+  local waited=0
+  until [ "$(status_of /login)" = "200" ]; do
+    waited=$((waited + 1))
+    if [ "$waited" -gt 60 ]; then fail "/login never answered 200 — cannot judge what it renders"; fi
+    sleep 1
+  done
+}
+
 echo "Third-party disclosure:"
 docker run -d --name "$NAME" -p "$PORT:3000" \
   -e BUILDCV_API_ORIGIN=http://buildcv-api-that-does-not-resolve:8080 \
   -e GOOGLE_CLIENT_ID=verify-image-client-id \
   -e GOOGLE_CLIENT_SECRET=verify-image-secret "$IMAGE" > /dev/null
 settle
+serving
 
+# The status travels with the failure. "Does not offer it" reads as a defect in the page; if the
+# cause is ever a 500 instead, the message has to say so rather than send somebody hunting a
+# rendering bug that is not there.
 offered=$(curl -s -m 10 "http://localhost:$PORT/login" | rg -c 'Continue with Google' || true)
-[ "${offered:-0}" -gt 0 ] || fail "Google is configured and the sign-in screen does not offer it"
+[ "${offered:-0}" -gt 0 ] \
+  || fail "Google is configured and the sign-in screen does not offer it (/login answered $(status_of /login))"
 pass "configured: the sign-in screen offers Google"
 
 # The assertion the production defect would have failed. A prerendered page answers the same way
@@ -181,6 +204,7 @@ cleanup
 docker run -d --name "$NAME" -p "$PORT:3000" \
   -e BUILDCV_API_ORIGIN=http://buildcv-api-that-does-not-resolve:8080 "$IMAGE" > /dev/null
 settle
+serving
 
 silent=$(curl -s -m 10 "http://localhost:$PORT/login" | rg -c 'Continue with Google' || true)
 [ "${silent:-0}" -eq 0 ] || fail "Google is not configured and the sign-in screen offers it anyway"
