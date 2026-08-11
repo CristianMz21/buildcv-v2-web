@@ -267,6 +267,19 @@ Read it before touching anything score-shaped.
   3.2:1 on white — the 3:1 a bar or a dot owes, short of the 4.5:1 a word owes. Three of the five
   bands in `TONES` were failing that way until it was measured. Reaching for the brighter colour
   looks like a small design choice and puts a score label back under the floor.
+- **The password rule is 12 characters, not 8, and it lives in `MIN_PASSWORD_LENGTH`.** Three screens
+  each carried their own literal and **all three were wrong**: Register and Settings said "8 characters
+  or more" and both enabled their submit button at 8, while the reset screen stated nothing. The API's
+  `PasswordPolicy.MinLength` is **12** (and `MaxLength` 128, which nothing mentioned at all). So a
+  person typed eight characters, was told that was enough, pressed a button the form had enabled for
+  them, and the API refused — spending one of the five auth requests a minute on somebody creating
+  their first account.
+
+  **No check in this repo can catch that drift.** The rule lives in a domain validator in
+  `buildcv-v2`, and `openapi.json` declares `password` as a bare string — so `contract:coverage` and
+  `gen:types:check` are both blind to it. `src/BuildCv.Domain/Identity/PasswordPolicy.cs` is the
+  source of truth; when it moves, `MIN_PASSWORD_LENGTH` in `src/lib/contracts.ts` is the one place
+  here that has to move with it.
 - **Never re-implement a server rule.** No client-side skill matcher, no band arithmetic. The scoring
   engine recognises alternative spellings (`React.js` satisfies `React`), so a local comparison would
   contradict the score next to it — see `requirementAnswers` in `src/lib/format.ts`, which reads the

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import type { ProblemDetails } from '@/lib/contracts';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, type ProblemDetails } from '@/lib/contracts';
 import { waitFor } from '@/lib/http';
 
 import { PasswordField } from '../PasswordField';
@@ -14,8 +14,12 @@ import styles from '../login/login.module.css';
 /**
  * The API's own rule, stated so a rejection is not the first place a candidate learns it. It is
  * checked here AND there — the server is the authority, this only saves a round trip.
+ *
+ * IMPORTED RATHER THAN WRITTEN DOWN AGAIN. The literal that used to sit here said 8, the real rule
+ * is 12, and this form enabled its button at 8 — so it told people a password was long enough and
+ * then watched the server refuse it. See `MIN_PASSWORD_LENGTH` for what that cost.
  */
-const MIN_PASSWORD = 8;
+const MIN_PASSWORD = MIN_PASSWORD_LENGTH;
 
 export function RegisterForm() {
   const router = useRouter();
@@ -100,6 +104,7 @@ export function RegisterForm() {
         autoComplete="new-password"
         withStrength
         minLength={MIN_PASSWORD}
+        maxLength={MAX_PASSWORD_LENGTH}
         hint={
           tooShort ? `At least ${MIN_PASSWORD} characters.` : `${MIN_PASSWORD} characters or more.`
         }

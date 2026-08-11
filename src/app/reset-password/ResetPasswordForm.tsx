@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import type { ProblemDetails } from '@/lib/contracts';
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, type ProblemDetails } from '@/lib/contracts';
 import { waitFor } from '@/lib/http';
 
 import { PasswordField } from '../PasswordField';
@@ -120,10 +120,19 @@ export function ResetPasswordForm() {
         onChange={setPassword}
         autoComplete="new-password"
         withStrength
-        hint="A password this server refuses does not use up your link — you can try another one here."
+        minLength={MIN_PASSWORD_LENGTH}
+        maxLength={MAX_PASSWORD_LENGTH}
+        hint={`${MIN_PASSWORD_LENGTH} characters or more. A password this server refuses does not use up your link — you can try another one here.`}
       />
 
-      <button className="btn btnPrimary btnLarge" type="submit" disabled={pending || password === ''}>
+      {/* Gated on the server's own minimum, like the other two screens. The hint's promise still
+          holds — a refusal genuinely does not spend the link — but a round trip that can only end in
+          "too short" is one this form already knows the answer to. */}
+      <button
+        className="btn btnPrimary btnLarge"
+        type="submit"
+        disabled={pending || password.length < MIN_PASSWORD_LENGTH}
+      >
         {pending ? 'Setting…' : 'Set my password'}
       </button>
     </form>
