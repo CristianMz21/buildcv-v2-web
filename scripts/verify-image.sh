@@ -186,14 +186,19 @@ serving
 # The status travels with the failure. "Does not offer it" reads as a defect in the page; if the
 # cause is ever a 500 instead, the message has to say so rather than send somebody hunting a
 # rendering bug that is not there.
-offered=$(curl -s -m 10 "http://localhost:$PORT/login" | rg -c 'Continue with Google' || true)
-[ "${offered:-0}" -gt 0 ] \
+# PLAIN BASH, NO `rg`. This file's own header says so and this section ignored it: the assertions
+# are string matches a shell can do itself, and the GitHub runner has no ripgrep. The failure read
+# "the sign-in screen does not offer Google" — a sentence about the page — while the real cause was
+# `rg: command not found` on a page that had answered 200 and rendered correctly.
+signin=$(curl -s -m 10 "http://localhost:$PORT/login")
+[[ $signin == *"Continue with Google"* ]] \
   || fail "Google is configured and the sign-in screen does not offer it (/login answered $(status_of /login))"
 pass "configured: the sign-in screen offers Google"
 
 # The assertion the production defect would have failed. A prerendered page answers the same way
 # whatever the container is told, so this passes only if the page is rendered per request.
-curl -s -m 10 "http://localhost:$PORT/legal/privacy" | rg -qi 'google' \
+privacy=$(curl -s -m 10 "http://localhost:$PORT/legal/privacy" | tr '[:upper:]' '[:lower:]')
+[[ $privacy == *"google"* ]] \
   || fail "Google sign-in is offered and the privacy page does not name Google — the published promise is false"
 pass "configured: the privacy page names Google"
 
@@ -206,13 +211,14 @@ docker run -d --name "$NAME" -p "$PORT:3000" \
 settle
 serving
 
-silent=$(curl -s -m 10 "http://localhost:$PORT/login" | rg -c 'Continue with Google' || true)
-[ "${silent:-0}" -eq 0 ] || fail "Google is not configured and the sign-in screen offers it anyway"
+signin=$(curl -s -m 10 "http://localhost:$PORT/login")
+[[ $signin != *"Continue with Google"* ]] || fail "Google is not configured and the sign-in screen offers it anyway"
 pass "unconfigured: the sign-in screen offers no Google"
 
-curl -s -m 10 "http://localhost:$PORT/legal/privacy" | rg -qi 'google' \
-  && fail "Google is not configured and the privacy page names it — describing a third party that is not there" \
-  || pass "unconfigured: the privacy page does not name Google"
+privacy=$(curl -s -m 10 "http://localhost:$PORT/legal/privacy" | tr '[:upper:]' '[:lower:]')
+[[ $privacy != *"google"* ]] \
+  || fail "Google is not configured and the privacy page names it — describing a third party that is not there"
+pass "unconfigured: the privacy page does not name Google"
 
 echo
 echo "The image is deployable."
