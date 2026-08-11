@@ -81,6 +81,91 @@ for (const screen of PUBLIC_SCREENS) {
   });
 }
 
+
+/**
+ * The screens BEHIND the session gate, which nothing here has ever opened.
+ *
+ * THIS IS THE LARGEST BLIND SPOT IN THE REPO. Seven screens — the CV list, the editor, readability,
+ * history, print, import and settings — plus the whole application shell, and no automated check has
+ * ever rendered one of them. The smoke suite reaches them and needs a real API from another
+ * repository, so it does not run in CI; everything else stops at the sign-in page.
+ *
+ * They are reachable without an API. `(app)/layout.tsx` gates on `readSession()`, which only asks
+ * whether two cookies exist — it does not validate them against anything — so a forged pair renders
+ * the shell exactly as a real one does. The data fetch behind each screen then fails, which means
+ * these scans cover two things worth covering and nothing else:
+ *
+ *   1. THE SHELL — navigation, landmarks, focus order. It renders identically whatever the API says,
+ *      and it is on every authenticated page, so a defect here is a defect seven times.
+ *   2. THE FAILURE STATE — what a screen looks like when its data does not arrive. That is the state
+ *      least likely to have been looked at by anyone, and the one a person meets on the worst day.
+ *
+ * WHAT THEY DELIBERATELY DO NOT COVER is the populated screen. A CV list with rows in it, an editor
+ * with entries, a score with a band colour — those need real data and belong to `/smoke`. Scanning an
+ * empty shell and calling the screen accessible would be this suite's own recurring lie.
+ *
+ * The cookies are nonsense on purpose: nothing here reaches the API, and a token shaped like a real
+ * one would invite somebody to think this suite tests a session.
+ */
+const AUTHENTICATED_SCREENS = [
+  { name: 'CV list', path: '/resumes' },
+  { name: 'import', path: '/resumes/import' },
+  { name: 'settings', path: '/settings' },
+] as const;
+
+for (const screen of AUTHENTICATED_SCREENS) {
+  test(`${screen.name} meets WCAG AA behind the session gate`, async ({ page, context }) => {
+    await context.addCookies([
+      { name: 'bcv_access', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+      { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+    ]);
+
+    await page.goto(screen.path);
+
+    // Proves the gate let us through rather than bouncing to /login — without this the scan could be
+    // measuring the sign-in page under another name and reporting it as coverage.
+    await expect(page).toHaveURL(new RegExp(`${screen.path}$`));
+
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(WCAG_AA)
+      .exclude('nextjs-portal')
+      .exclude('#next-logo')
+      .analyze();
+
+    expect(
+      violations.flatMap((v) =>
+        v.nodes.map((node) => `${v.id} (${v.impact}) at ${node.target.join(' ')} — ${node.failureSummary?.replace(/\s+/g, ' ').trim()}`),
+      ),
+      `${screen.name} must have no WCAG AA violations`,
+    ).toEqual([]);
+  });
+}
+
+/**
+ * The upload control is the button, and the file input is the mechanism.
+ *
+ * Pins BOTH halves, because each is one careless edit from the other's failure. Deleting the input
+ * leaves a button that opens nothing; putting it back in the tab order restores the unlabelled,
+ * critical-severity control this file just found. Neither shows up as a broken page.
+ */
+test('the import upload has exactly one control', async ({ page, context }) => {
+  await context.addCookies([
+    { name: 'bcv_access', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+    { name: 'bcv_refresh', value: 'e2e-not-a-token', url: 'http://localhost:3210' },
+  ]);
+
+  await page.goto('/resumes/import');
+
+  // The button the person actually meets.
+  await expect(page.getByRole('button', { name: 'Choose a file' })).toBeVisible();
+
+  // The input still exists — the button clicks it — and is neither announced nor tabbable.
+  const input = page.locator('input[type="file"]');
+  await expect(input).toHaveCount(1);
+  await expect(input).toHaveAttribute('aria-hidden', 'true');
+  await expect(input).toHaveAttribute('tabindex', '-1');
+});
+
 /**
  * The strength meter, scanned in the only state where it exists.
  *
