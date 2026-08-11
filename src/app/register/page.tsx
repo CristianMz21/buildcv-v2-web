@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { readSession } from '@/lib/session';
@@ -24,13 +23,11 @@ export default async function RegisterPage() {
 
         <RegisterForm />
 
-        {/* The moment a candidate decides to hand over their employment history is this form, not a
-            footer three pages away. The claims on those pages are unusually checkable, which is the
-            only reason linking them here is useful rather than decorative. */}
-        <p className={styles.hint} style={{ textAlign: 'center' }}>
-          <Link href="/legal/privacy">What we store</Link> ·{' '}
-          <Link href="/legal/terms">Terms</Link>
-        </p>
+        {/* Both legal pages are linked from inside `RegisterForm`, directly beneath the button, as a
+            statement of what pressing it accepts rather than as a pair of links to browse. The
+            moment a candidate decides to hand over their employment history is this form, not a
+            footer three pages away — and an acceptance sentence at the point of the decision is
+            worth more than an invitation to read placed after it. */}
       </div>
     </main>
   );

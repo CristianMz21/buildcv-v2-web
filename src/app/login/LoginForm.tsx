@@ -1,10 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import type { ProblemDetails } from '@/lib/contracts';
 import { waitFor } from '@/lib/http';
+
+import { PasswordField } from '../PasswordField';
 
 import styles from './login.module.css';
 
@@ -76,20 +79,20 @@ export function LoginForm() {
         />
       </div>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor="password">
-          Password
-        </label>
-        <input
-          id="password"
-          className={styles.input}
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
+      {/* No strength meter on sign-in: the password already exists, and rating it would be telling
+          somebody their password is weak at the exact moment they can do nothing about it. */}
+      <PasswordField
+        id="password"
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="current-password"
+        aside={
+          <Link className={styles.aside} href="/forgot-password">
+            Forgot password?
+          </Link>
+        }
+      />
 
       <button className="btn btnPrimary btnLarge" type="submit" disabled={pending}>
         {pending ? 'Signing in…' : 'Sign in'}
