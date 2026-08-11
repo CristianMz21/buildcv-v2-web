@@ -204,8 +204,14 @@ export default function PrivacyPage() {
         <p className={styles.body}>
           <Link href="/settings">Settings</Link> has a delete control that closes your account and
           removes every CV, every analysis, every readability report, every job posting you created
-          and every session. It asks for your password and cannot be undone. Nothing is retained
-          afterwards except what the log and backup period above already covers.
+          and every session. It asks for your password and cannot be undone.
+        </p>
+        <p className={styles.body}>
+          <strong>One caveat, because it is true of almost every service and almost none of them say
+          it.</strong> Deleting removes your data from the live database immediately, and database
+          backups are kept for seven days &mdash; so for up to a week afterwards your CV still exists
+          in a backup nobody can read casually but which does exist. After that window it is gone from
+          there too, and nothing else is retained.
         </p>
       </section>
 
