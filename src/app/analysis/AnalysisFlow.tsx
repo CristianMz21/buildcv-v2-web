@@ -16,6 +16,7 @@ import { correlationIdOf, fieldErrorsOf, messageOf, readJson, SessionExpired } f
 
 import styles from './analysis.module.css';
 import { InputsStep } from './InputsStep';
+import { Notice } from './Notice';
 import { RequirementsStep, type DraftRequirement } from './RequirementsStep';
 import { ResultsStep } from './ResultsStep';
 import { RunningStep } from './RunningStep';
@@ -317,22 +318,13 @@ export function AnalysisFlow() {
       <main className={styles.main}>
         {phase === 'inputs' && (
           <>
+            {/* `Notice`, not a hand-rolled div. This banner had grown its own copy of the error
+                notice markup, which is how the reference ended up on this phase and not on the one
+                where the expensive failure actually lands. */}
             {error && (
-              <div className={`${styles.notice} ${styles.noticeError}`} role="alert">
-                <div>
-                  {error}
-                  {/* OUTSIDE the sentence, and shown only when the response actually carried one — a
-                      400 on the posting text has nothing to look up and would get a reference number
-                      that leads nowhere. `user-select: all` is the whole point: this exists to be
-                      copied into a message, and asking somebody to transcribe a UUID by hand is
-                      asking them not to bother. */}
-                  {errorReference && (
-                    <span className={styles.reference}>
-                      Reference <code>{errorReference}</code>
-                    </span>
-                  )}
-                </div>
-              </div>
+              <Notice variant="error" reference={errorReference}>
+                {error}
+              </Notice>
             )}
             <InputsStep
               resumes={resumes}
@@ -354,6 +346,7 @@ export function AnalysisFlow() {
             requirements={requirements}
             fieldErrors={fieldErrors}
             error={error}
+            reference={errorReference}
             busy={busy}
             onTitleChange={setTitle}
             onCompanyChange={setCompanyName}

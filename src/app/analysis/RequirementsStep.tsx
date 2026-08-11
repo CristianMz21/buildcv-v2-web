@@ -20,6 +20,8 @@ interface RequirementsStepProps {
   requirements: DraftRequirement[];
   fieldErrors: Record<string, string[]>;
   error: string | null;
+  /** The id a failed scoring run was logged under — this is where that failure surfaces. */
+  reference: string | null;
   busy: boolean;
   onTitleChange: (value: string) => void;
   onCompanyChange: (value: string) => void;
@@ -53,6 +55,7 @@ export function RequirementsStep({
   requirements,
   fieldErrors,
   error,
+  reference,
   busy,
   onTitleChange,
   onCompanyChange,
@@ -79,7 +82,11 @@ export function RequirementsStep({
         requirements the skills part of your score is measured against.
       </p>
 
-      {error && <Notice variant="error">{error}</Notice>}
+      {error && (
+        <Notice variant="error" reference={reference}>
+          {error}
+        </Notice>
+      )}
 
       {guessedCount > 0 && (
         <Notice variant="warn">

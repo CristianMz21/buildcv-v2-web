@@ -670,9 +670,14 @@
   display: block;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--bad-border);
+  /* INHERITED, not pinned to --bad-fg. `Notice` has three variants and each already carries a text
+     colour proven against its own background; hardcoding the error tone here would be correct on one
+     of the three and a contrast bug on the other two the first time somebody passed a reference to
+     them. The rule takes currentColor for the same reason — a border owes no ratio, so mixing it
+     toward transparent keeps it quiet without touching the text it separates. */
+  border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent);
   font: 400 11.5px var(--font);
-  color: var(--bad-fg);
+  color: inherit;
 }
 
 /* The id itself, and the reason this block exists at all: it is here to be copied into a message.
