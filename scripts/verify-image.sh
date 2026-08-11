@@ -202,6 +202,19 @@ privacy=$(curl -s -m 10 "http://localhost:$PORT/legal/privacy" | tr '[:upper:]' 
   || fail "Google sign-in is offered and the privacy page does not name Google — the published promise is false"
 pass "configured: the privacy page names Google"
 
+# THE ROUND TRIP THAT DELETES AN ACCOUNT MUST NOT BE STARTABLE BY A LINK. A GET here would be a CSRF
+# hole with a consent screen in the middle of it: send a signed-in person the URL, their browser
+# follows it, Google hands them back, and the callback erases their CVs. It is POST-only so the
+# Origin guard in src/middleware.ts applies, and both halves are asserted because either one alone
+# would look like protection while leaving the other open.
+code=$(status_of /api/auth/google/confirm)
+[ "$code" = "405" ] || fail "a GET can reach the delete-confirmation route ($code) — a link could start it"
+pass "configured: the delete confirmation refuses GET (405)"
+
+code=$(curl -s -o /dev/null -w '%{http_code}' -m 10 -X POST "http://localhost:$PORT/api/auth/google/confirm" 2>/dev/null) || code=000
+[ "$code" = "403" ] || fail "a POST with no Origin reached the delete-confirmation route ($code)"
+pass "configured: the delete confirmation refuses a POST with no Origin (403)"
+
 cleanup
 
 # And the other direction, because a page that ALWAYS names Google would pass the check above while

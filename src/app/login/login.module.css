@@ -287,3 +287,20 @@
   height: 1px;
   background: var(--border);
 }
+
+/*
+ * The end of something the person asked for, not a warning.
+ *
+ * Takes the calm end of the palette deliberately: deleting an account is a success from the reader's
+ * point of view, and dressing it in the error tone would suggest something went wrong at the exact
+ * moment they need to be sure nothing did. Measured at 7.29:1, well past the 4.5:1 a word owes.
+ */
+.note {
+  background: var(--good-bg);
+  border: 1px solid var(--good-border);
+  color: var(--good-fg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 0 4px;
+  font: 400 12.5px/1.5 var(--font);
+}

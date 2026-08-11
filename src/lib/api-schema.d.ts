@@ -154,6 +154,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/external": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signs in with an external identity provider, creating the account if needed.
+         * @description The body carries the provider's identity token verbatim; this API verifies its signature against the provider's published keys and checks the audience, so a token minted for another application is refused. An address the provider has not verified is refused too.
+         *
+         *     A provider address matching an existing password account signs INTO that account rather than creating a second one. An address already linked to a DIFFERENT identity at the same provider is refused: provider addresses can be reassigned, and the previous holder's data is not the new holder's.
+         *
+         *     Every refusal answers the same message and the same status, so no caller learns whether an address is registered here.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ExternalSignInRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TokenResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -5383,6 +5466,7 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             lastLoginAt: null | string;
+            signInMethods: string[];
         };
         AddAwardRequest: {
             title: string;
@@ -5549,6 +5633,8 @@ export interface components {
         };
         DeleteAccountRequest: {
             currentPassword: string;
+            externalProvider?: null | string;
+            externalIdToken?: null | string;
         };
         DraftConfidenceResponse: {
             overall: string;
@@ -5574,6 +5660,10 @@ export interface components {
             period: components["schemas"]["DateRangeResponse"];
             summary: null | string;
             highlights: string[];
+        };
+        ExternalSignInRequest: {
+            provider: string;
+            idToken: string;
         };
         ExtractDocumentTextResponse: {
             text: string;

@@ -363,6 +363,27 @@ export async function external(provider: 'google', idToken: string): Promise<Log
 }
 
 /**
+ * Deletes the signed-in account using a freshly proved external identity instead of a password.
+ *
+ * THE SECOND FACTOR IS THE POINT. The session alone must not be able to erase somebody's employment
+ * history — that is why the password path asks for the password, and dropping to session-only for
+ * provider accounts would make them the weakest thing on the platform rather than the strongest.
+ * The id_token is minted seconds earlier by a provider that just re-authenticated the person.
+ *
+ * The API deliberately does NOT compare the identity in the token to the account: holding the access
+ * token already proved which account this is, and this answers a different question — whether the
+ * person at the keyboard is still the one the provider knows, right now. Comparing addresses too
+ * would strand anybody whose provider address changed.
+ */
+export async function deleteAccountExternally(provider: 'google', idToken: string): Promise<Response> {
+  return apiFetch('/auth/me', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ externalProvider: provider, externalIdToken: idToken }),
+  });
+}
+
+/**
  * The half both sign-in paths share, extracted rather than copied.
  *
  * Two copies of "collect the access token from the body and the refresh token from a cookie, and fail

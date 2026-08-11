@@ -53,6 +53,33 @@ export type TokenResponse = Schemas['TokenResponse'];
  */
 export type AccountResponse = Schemas['AccountResponse'];
 
+/**
+ * Whether this account can be got into with a password, and whether it can be got into at all
+ * without its provider.
+ *
+ * THE PRIVACY PAGE PROMISES A DELETE CONTROL, and that promise is what makes this more than a
+ * cosmetic branch. An account created through Google has no password, and both the change-password
+ * and delete panels used to demand one — so a Google-only user met two forms that could not work and
+ * no explanation, on a page whose published legal text says they may erase everything. A right to
+ * erasure is not somewhere to be approximately correct.
+ *
+ * READ FROM THE SERVER, NEVER GUESSED. `signInMethods` is derived per read on the API side from the
+ * credentials it actually holds, so it cannot drift from them. A client-side inference — "no password
+ * field came back, so there must be no password" — would be the same shape of mistake as a local
+ * skill matcher contradicting a score.
+ *
+ * Unknown values degrade rather than crash, like every other enum here: a provider added later is a
+ * method this build has never heard of, and `hasPassword` stays exactly as true as it was.
+ */
+export function hasPassword(account: AccountResponse | null): boolean {
+  return account?.signInMethods?.includes('password') ?? false;
+}
+
+/** The external providers linked to this account, in the order the server returned them. */
+export function externalProviders(account: AccountResponse | null): string[] {
+  return (account?.signInMethods ?? []).filter((method) => method !== 'password');
+}
+
 // ── Resumes ────────────────────────────────────────────────────────────────────
 
 /**

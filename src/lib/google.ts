@@ -43,6 +43,15 @@ export const STATE_COOKIE = 'buildcv_oauth_state';
 export const VERIFIER_COOKIE = 'buildcv_oauth_verifier';
 
 /**
+ * What the round trip is for, decided when it STARTS and never read from what Google hands back.
+ *
+ * Absent means "sign in". Present and `delete` means the person asked, from a page they were already
+ * looking at, to confirm an account deletion. Keeping it in an httpOnly cookie rather than in the
+ * `redirect_uri` is what stops a link from turning one into the other.
+ */
+export const INTENT_COOKIE = 'buildcv_oauth_intent';
+
+/**
  * Where Google is told to come back to.
  *
  * Built from `SITE_ORIGIN` rather than from the incoming request, and that is deliberate: Google

@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 
 import { Warning } from '@/components/icons';
 import {
+  externalProviders,
+  hasPassword,
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   type AccountResponse,
@@ -73,8 +75,23 @@ export function SettingsScreen() {
         )}
       </div>
 
-      <ChangePassword onDone={() => router.replace('/login')} />
-      <DeleteAccount onDone={() => router.replace('/login')} />
+      {/* WAITS FOR THE ACCOUNT rather than assuming a password exists while it loads. Rendering the
+          password form optimistically and swapping it a moment later would flash a control at
+          somebody who does not have one, and on a slow connection the flash is the whole visit. */}
+      {account &&
+        (hasPassword(account) ? (
+          <ChangePassword onDone={() => router.replace('/login')} />
+        ) : (
+          <SignsInWithProvider providers={externalProviders(account)} />
+        ))}
+
+      {account && (
+        <DeleteAccount
+          hasPassword={hasPassword(account)}
+          providers={externalProviders(account)}
+          onDone={() => router.replace('/login')}
+        />
+      )}
     </div>
   );
 }
@@ -95,14 +112,27 @@ export function SettingsScreen() {
  * smallest thing that cannot be done by accident, and this is the only screen in the product where
  * an accident is unrecoverable.
  */
-function DeleteAccount({ onDone }: { onDone: () => void }) {
+function DeleteAccount({
+  hasPassword: withPassword,
+  providers,
+  onDone,
+}: {
+  hasPassword: boolean;
+  providers: string[];
+  onDone: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  const ready = password !== '' && confirmation.trim().toUpperCase() === 'DELETE';
+  // The password is only part of the gate when there IS one. For a provider-only account the second
+  // factor is a fresh token from that provider, which the API requires and this screen cannot yet
+  // supply — see the notice below. Typing DELETE is asked of everyone: it is a confirmation, not a
+  // credential, and it is the half that stops a mis-click.
+  const typed = confirmation.trim().toUpperCase() === 'DELETE';
+  const ready = typed && (!withPassword || password !== '');
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -112,9 +142,31 @@ function DeleteAccount({ onDone }: { onDone: () => void }) {
     setError(null);
 
     try {
+      // NO PASSWORD MEANS A ROUND TRIP, NOT A WEAKER CHECK. This asks our own origin for the
+      // provider URL — a POST, so `src/middleware.ts` refuses it unless it came from this page. A
+      // plain link would let anybody hand a signed-in person a URL that deletes their account after
+      // one consent screen.
+      if (!withPassword) {
+        const started = await fetch('/api/auth/google/confirm', { method: 'POST' });
+
+        if (!started.ok) {
+          setError(messageOf(await failureOf(started), 'Could not start the confirmation.'));
+          return;
+        }
+
+        const { url } = (await started.json()) as { url: string };
+        // The deletion happens in the callback, after the provider proves it is still you. Nothing
+        // is deleted yet at this point, which is why the button says "Continue" rather than "Delete".
+        window.location.assign(url);
+        return;
+      }
+
       const response = await fetch('/api/auth/me', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
+        // `currentPassword` only. The provider-confirmed path needs a fresh id_token, which means
+        // another round trip through the provider, and it is a separate change — this screen refuses
+        // to start rather than sending a request the API will correctly reject.
         body: JSON.stringify({ currentPassword: password }),
       });
 
@@ -160,19 +212,29 @@ function DeleteAccount({ onDone }: { onDone: () => void }) {
         <strong>Print or save as PDF</strong> on its own page.
       </p>
 
-      <div className={styles.field}>
-        <label className={styles.label} htmlFor="delete-password">
-          Your password
-        </label>
-        <input
-          id="delete-password"
-          className={styles.input}
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </div>
+      {withPassword ? (
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="delete-password">
+            Your password
+          </label>
+          <input
+            id="delete-password"
+            className={styles.input}
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </div>
+      ) : (
+        // The second factor for an account with no password. Said plainly BEFORE the button, because
+        // being sent to Google unannounced in the middle of deleting something reads as a redirect
+        // that went wrong.
+        <p className={styles.note}>
+          You will be sent to {providers[0] === 'google' ? 'Google' : 'your provider'} to confirm it
+          is you. Deleting only happens after that — a session on its own is not enough to erase this.
+        </p>
+      )}
 
       <div className={styles.field}>
         <label className={styles.label} htmlFor="delete-confirmation">
@@ -209,7 +271,17 @@ function DeleteAccount({ onDone }: { onDone: () => void }) {
           Keep my account
         </button>
         <button type="submit" className="btn btnDanger" disabled={!ready || pending}>
-          {pending ? 'Deleting…' : 'Delete everything'}
+          {/* The label tells the truth about what pressing it does NEXT. For a provider account
+              nothing is deleted at this point — the round trip happens first — and a button that
+              said "Delete everything" and then showed a Google consent screen would read as the
+              click having gone somewhere unintended. */}
+          {pending
+            ? withPassword
+              ? 'Deleting…'
+              : 'Taking you to confirm…'
+            : withPassword
+              ? 'Delete everything'
+              : 'Continue to confirm'}
         </button>
       </div>
     </form>
@@ -223,6 +295,34 @@ function DeleteAccount({ onDone }: { onDone: () => void }) {
  * leak actually evict whoever else was holding a token. The form says so before it is used rather
  * than dropping the candidate at a sign-in screen with no explanation.
  */
+/**
+ * What stands where the change-password form would be, for somebody who has no password.
+ *
+ * A PANEL RATHER THAN NOTHING. Removing the section entirely would leave a page that silently lacks
+ * something other accounts have, and the reader is left to wonder whether they missed it. Saying "you
+ * sign in with Google, there is no password here" answers the question the empty space would raise.
+ *
+ * It also answers the one that matters more: what happens if you lose the provider. This product has
+ * no mail-based recovery, so for these accounts Google is the only way in — that is worth knowing
+ * BEFORE it is discovered.
+ */
+function SignsInWithProvider({ providers }: { providers: string[] }) {
+  const named = providers.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' and ');
+
+  return (
+    <section className={`card ${styles.panel}`}>
+      <h2 className={styles.panelTitle}>Password</h2>
+      <p className={styles.panelBody}>
+        You sign in with {named || 'an external provider'}, so this account has no password to change.
+      </p>
+      <p className={styles.note}>
+        That also means {named || 'your provider'} is the only way into this account — there is no
+        email recovery on this server. If you lose access to it, tell us before you lose it.
+      </p>
+    </section>
+  );
+}
+
 function ChangePassword({ onDone }: { onDone: () => void }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');

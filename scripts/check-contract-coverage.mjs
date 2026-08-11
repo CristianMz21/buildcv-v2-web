@@ -82,14 +82,9 @@ for (const [path, operations] of Object.entries(contract.paths ?? {})) {
  * That is the whole reason this check was not a CI job until the drift was closed.
  */
 const PENDING = [
-  {
-    method: 'post',
-    path: '/auth/external',
-    why:
-      'Google sign-in. The BFF half is built and dormant — the button renders only where GOOGLE_CLIENT_ID\n' +
-      '     is set, which is nowhere in production yet. The API needs to verify a Google id_token against\n' +
-      "     Google's JWKS and issue the same session /auth/login does. Owned by the buildcv-v2 session.",
-  },
+  // Empty, and it earned the right to be. `/auth/external` sat here while the API half was built;
+  // the moment the operation appeared in the contract this check failed and told me to delete the
+  // entry, which is the only reason a waiver is safe to write at all.
 ];
 
 const sources = globSync('src/**/*.ts', { exclude: (p) => p.includes('api-schema.d.ts') });

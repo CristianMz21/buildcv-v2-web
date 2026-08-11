@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
-import { ApiUnreachableError, external } from '@/lib/backend';
-import { exchange, isConfigured, STATE_COOKIE, VERIFIER_COOKIE } from '@/lib/google';
-import { writeSession } from '@/lib/session';
+import { ApiUnreachableError, deleteAccountExternally, external } from '@/lib/backend';
+import { exchange, INTENT_COOKIE, isConfigured, STATE_COOKIE, VERIFIER_COOKIE } from '@/lib/google';
+import { clearSession, writeSession } from '@/lib/session';
 
 /**
  * Step two: Google sends the visitor back, and this decides whether to believe it.
@@ -40,6 +40,7 @@ function refuse(origin: string, reason: string, logged: string): NextResponse {
   // already been through one exchange.
   response.cookies.delete(STATE_COOKIE);
   response.cookies.delete(VERIFIER_COOKIE);
+  response.cookies.delete(INTENT_COOKIE);
   return response;
 }
 
@@ -80,6 +81,32 @@ export async function GET(request: Request): Promise<NextResponse> {
     return refuse(url.origin, 'exchange', error instanceof Error ? error.message : 'code exchange failed');
   }
 
+  // WHAT THIS ROUND TRIP WAS FOR, taken from the cookie this app set when it started — never from
+  // the query string Google echoes back. A `?intent=` parameter would let a crafted link turn a
+  // sign-in into an account deletion, which is the whole reason the confirm route is a POST.
+  if (cookie(INTENT_COOKIE) === 'delete') {
+    let deleted: Response;
+    try {
+      deleted = await deleteAccountExternally('google', idToken);
+    } catch (error) {
+      if (error instanceof ApiUnreachableError) return refuse(url.origin, 'unreachable', `${error.message} (${error.correlationId})`);
+      throw error;
+    }
+
+    if (!deleted.ok) return refuse(url.origin, 'delete', `the API refused the deletion with ${deleted.status}`);
+
+    // The session is cleared HERE rather than left to expire. The account behind it no longer exists,
+    // so every cookie still on this browser is a credential for nothing — and the next request would
+    // answer 401 and read to the user as a bug rather than as the thing they just asked for.
+    await clearSession();
+
+    const done = NextResponse.redirect(new URL('/login?deleted=1', url.origin), { status: 302 });
+    done.cookies.delete(STATE_COOKIE);
+    done.cookies.delete(VERIFIER_COOKIE);
+    done.cookies.delete(INTENT_COOKIE);
+    return done;
+  }
+
   let outcome;
   try {
     outcome = await external('google', idToken);
@@ -99,5 +126,6 @@ export async function GET(request: Request): Promise<NextResponse> {
   const response = NextResponse.redirect(new URL('/resumes', url.origin), { status: 302 });
   response.cookies.delete(STATE_COOKIE);
   response.cookies.delete(VERIFIER_COOKIE);
+  response.cookies.delete(INTENT_COOKIE);
   return response;
 }
