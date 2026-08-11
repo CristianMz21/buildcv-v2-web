@@ -179,5 +179,26 @@ if [ -n "$CUSTOM" ]; then
   esac
 fi
 
+# ── 6. The privacy page admits whoever is actually in the path ────────────────
+#
+# A GATE RATHER THAN AN INTENTION, and it exists because the intention failed. The privacy page was
+# rewritten to name Cloudflare *before* the traffic moved — that ordering was argued for, written down,
+# and then not followed: the pull request sat open while the record went orange, so for about an hour
+# the published page told candidates "there is no third party" while one terminated their TLS.
+#
+# Nothing catches that but a check. If an edge is in front, the page has to say so.
+echo "Disclosure:"
+edge=$(curl -sSI -m 30 "$URL/login" 2>/dev/null | tr '[:upper:]' '[:lower:]' | rg -o 'server: *[a-z]+' | sd 'server: *' '' | head -1)
+
+if [ "$edge" = "cloudflare" ]; then
+  if curl -s -m 30 "$URL/legal/privacy" 2>/dev/null | rg -qi 'cloudflare'; then
+    pass "an edge is in front and the privacy page names it"
+  else
+    fail "traffic passes through $edge and the privacy page does not name it — the published promise is false"
+  fi
+else
+  pass "no third-party edge detected in the response (server: ${edge:-none})"
+fi
+
 echo
 echo "The deployment is what it claims to be."
