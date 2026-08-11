@@ -40,6 +40,17 @@ export default defineConfig({
         timeout: 120_000,
         env: {
           BUILDCV_API_ORIGIN: process.env.BUILDCV_API_ORIGIN ?? 'http://localhost:5062',
+          // GOOGLE SIGN-IN IS TURNED ON FOR THE SUITE, and the reason is a mistake this file has
+          // already paid for once. The button renders only when Google is configured, so a run
+          // without these would scan a sign-in screen that does not have it and report a clean sheet
+          // on a control that was never in the DOM — exactly what happened with the password strength
+          // meter, which seven axe scans passed without ever seeing.
+          //
+          // The values are placeholders and cannot become real: nothing here completes an OAuth
+          // round trip, and Google would refuse this client id at the first redirect. What they buy
+          // is the screen looking like production looks.
+          GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? 'e2e-placeholder-client-id',
+          GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? 'e2e-placeholder-secret',
         },
       },
 });

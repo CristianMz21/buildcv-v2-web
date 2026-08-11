@@ -25,6 +25,26 @@ export async function register() {
 
   const { initBackend } = await import('./lib/backend');
   initBackend();
+
+  // GOOGLE IS OPTIONAL, SO THE CHECK IS NOT "IS IT SET" BUT "IS IT HALF SET".
+  //
+  // Neither variable present is a perfectly good deployment: `isConfigured()` answers false, no
+  // button renders, the routes 404 and the privacy page describes one third party instead of two.
+  // ONE of them present is the state worth refusing to start on — the button appears, somebody
+  // presses it, and the failure lands after they have already handed their consent to Google.
+  //
+  // Read directly rather than through `src/lib/google.ts`: that module is `server-only` and its
+  // predicate deliberately answers false for a half-configured deployment, which is the exact case
+  // this is here to catch.
+  const id = Boolean(process.env.GOOGLE_CLIENT_ID);
+  const secret = Boolean(process.env.GOOGLE_CLIENT_SECRET);
+
+  if (id !== secret) {
+    throw new Error(
+      `Google sign-in is half configured: ${id ? 'GOOGLE_CLIENT_ID' : 'GOOGLE_CLIENT_SECRET'} is set and ` +
+        `${id ? 'GOOGLE_CLIENT_SECRET' : 'GOOGLE_CLIENT_ID'} is not. Set both to offer it, or neither to leave it off.`,
+    );
+  }
 }
 
 /**

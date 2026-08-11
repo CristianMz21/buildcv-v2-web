@@ -200,6 +200,22 @@ else
   pass "no third-party edge detected in the response (server: ${edge:-none})"
 fi
 
+# THE SAME GATE, FOR THE SECOND THIRD PARTY. Signing in with Google puts Google in the authentication
+# path, and the privacy page's "beyond that, nothing" becomes false the moment the button appears.
+#
+# The two are wired to one predicate in the code — `isConfigured()` decides both — so this should be
+# impossible to break. That is precisely why it is asserted: the Cloudflare disclosure was also
+# argued for and written down before it failed, and what failed was not the argument.
+if curl -s -m 30 "$URL/login" 2>/dev/null | rg -q 'Continue with Google'; then
+  if curl -s -m 30 "$URL/legal/privacy" 2>/dev/null | rg -qi 'google'; then
+    pass "Google sign-in is offered and the privacy page names Google"
+  else
+    fail "sign-in offers Google and the privacy page does not name it — the published promise is false"
+  fi
+else
+  pass "Google sign-in is not offered on this deployment"
+fi
+
 # ── 7. The product can be found and can be shared ─────────────────────────────
 #
 # THESE ARE THE ONLY ASSERTIONS HERE THAT ARE ABOUT REACHING PEOPLE RATHER THAN PROTECTING THEM, and

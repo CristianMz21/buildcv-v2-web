@@ -224,3 +224,66 @@
   min-width: 44px;
   text-align: right;
 }
+
+/* ── Continue with Google ─────────────────────────────────────────────────── */
+
+/*
+ * A link styled as a button, so it needs the height and hit area a button has — an anchor collapses
+ * to its text and a 14px tap target on a phone is a control most people miss on the first try.
+ *
+ * The border carries the affordance rather than a fill: this sits above the email form and a solid
+ * button here would outrank "Sign in", which is still the path most people arrive on.
+ */
+.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 600 14px var(--font);
+  text-decoration: none;
+}
+
+.google:hover {
+  background: var(--bg);
+}
+
+/* Explicit, because this is an anchor and a stylesheet reset elsewhere could leave it with nothing.
+   The e2e suite measures this rather than trusting it — axe reads the DOM and cannot see a focus
+   ring that a reset removed. */
+.google:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.googleNote {
+  margin: 8px 0 0;
+  font: 400 12px/1.5 var(--font);
+  color: var(--fg-faint);
+  text-align: center;
+}
+
+/* A rule with a word in it. `aria-hidden` is deliberately NOT used: "or" is genuinely the relationship
+   between the two options and a screen reader benefits from hearing it, unlike the line itself, which
+   is drawn with borders rather than characters and so is announced as nothing. */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 4px;
+  font: 400 12px var(--font);
+  color: var(--fg-faint);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}

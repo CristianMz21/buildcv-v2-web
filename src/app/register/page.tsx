@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 
 import { readSession } from '@/lib/session';
 
+import { GoogleButton } from '../GoogleButton';
+
 import { RegisterForm } from './RegisterForm';
 import styles from '../login/login.module.css';
 
@@ -20,6 +22,10 @@ export default async function RegisterPage() {
           </span>
           <h1 className={styles.title}>Create your account</h1>
         </div>
+
+        {/* First, and that ordering is the point of this work: the fastest way to have an account
+            is the one that asks for no password at all. */}
+        <GoogleButton verb="Sign up" />
 
         <RegisterForm />
 

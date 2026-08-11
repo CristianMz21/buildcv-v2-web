@@ -329,13 +329,47 @@ export type LoginOutcome =
  * halves have to be collected from different places.
  */
 export async function login(email: string, password: string): Promise<LoginOutcome> {
-  const response = await reach(apiUrl('/auth/login'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-    cache: 'no-store',
-  });
+  return sessionFrom(
+    await reach(apiUrl('/auth/login'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+      cache: 'no-store',
+    }),
+  );
+}
 
+/**
+ * Exchanges a verified external identity for the same session a password would have produced.
+ *
+ * THE ID TOKEN IS FORWARDED, NOT ITS CONTENTS. This side does not decode it and does not tell the API
+ * whose email it is: the API checks the signature against Google's JWKS itself. Sending
+ * `{ email }` instead would mean anything able to reach the internal API could assert any identity,
+ * and it would make this BFF the authority on who somebody is — which is the one thing it has never
+ * been for anything else.
+ *
+ * The outcome shape is deliberately identical to `login`'s, because from the session's point of view
+ * nothing differs: two httpOnly cookies on this origin, the same refresh, the same expiry.
+ */
+export async function external(provider: 'google', idToken: string): Promise<LoginOutcome> {
+  return sessionFrom(
+    await reach(apiUrl('/auth/external'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, idToken }),
+      cache: 'no-store',
+    }),
+  );
+}
+
+/**
+ * The half both sign-in paths share, extracted rather than copied.
+ *
+ * Two copies of "collect the access token from the body and the refresh token from a cookie, and fail
+ * loudly if either is missing" is how they would drift — which is not a hypothetical in this repo:
+ * the password minimum was wrong in three places at once for exactly that reason.
+ */
+async function sessionFrom(response: Response): Promise<LoginOutcome> {
   if (!response.ok) {
     return {
       ok: false,
