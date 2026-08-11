@@ -68,6 +68,18 @@ jobs:
       # forbids: a type widened by hand to make `tsc` agree with a screen.
       - run: pnpm gen:types:check
 
+      # Asks the question no other check asks: does the app CALL operations the contract describes?
+      # `gen:types:check` proves the types match the contract and `gen:api:check` proves the contract
+      # matches a live API — neither looks at the call sites, and route handlers relay untyped, so
+      # the path is a string and `tsc` has no opinion about it.
+      #
+      # It could not be a job until now. It reported three operations missing for as long as it has
+      # existed — the app was right and the committed contract was three operations old — and wiring
+      # a check in while it is red only teaches the reader that a red check is normal. The contract
+      # has been regenerated against a running API and this passes clean, which is what earns it a
+      # place here. Needs nothing: no API, no credentials.
+      - run: pnpm contract:coverage
+
       # BUILDCV_API_ORIGIN is deliberately absent, exactly as in the Dockerfile: the build is
       # hermetic because openapi.json is committed. If a change ever makes `next build` evaluate
       # src/lib/backend.ts, this step fails on the missing-origin throw — and that failure is the

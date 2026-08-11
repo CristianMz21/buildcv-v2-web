@@ -395,6 +395,186 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Closes the account and deletes everything it owns. Irreversible.",
+        "description": "REQUIRES THE CURRENT PASSWORD, like `/auth/change-password` and for the same reason: an access token alone must not be enough to erase somebody's employment history. DELETES every CV — and with each one the analyses and readability reports derived from it — every job posting or imported offer the account owns, and every session. The email address becomes available for registration again. REFUSES with 400 if the account is the only owner of an organization that has other members: closing it would destroy their data, and this API cannot transfer ownership. Remove the other members first (`DELETE /v1/organizations/{id}/members/{accountId}`), or have another owner remove you. An organization where this account is the only member is closed with it. Nothing is deleted when the request is refused, so a caller told to deal with an organization still has every CV when they come back. Shares the per-account rate window with `/auth/change-password`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password-reset": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Emails a single-use reset link, if that address has an account.",
+        "description": "ALWAYS 202, whether or not the address is registered — deliberately, so this cannot be used to discover who has an account here. Do not tell the user their address was found; tell them that if it has an account, a link is on its way. 503 means this server has no mail provider configured, which is the same answer for every address and therefore reveals nothing. The link expires in an hour and works ONCE.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted"
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sets a new password from a reset link. The link is spent by succeeding.",
+        "description": "SINGLE USE, and it costs nothing to store: the token is signed over the account's current password hash, so succeeding changes the hash and every token minted against the old one — including the one just spent — stops verifying. Changing the password any other way kills them too. EVERY SESSION IS REVOKED, because the person redeeming this may be recovering from a compromise and the attacker's refresh token must not survive it. Log in again afterwards. A bad, expired or already-spent token all answer with the SAME sentence — telling them apart would say whether the account exists.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/auth/antiforgery": {
@@ -5944,6 +6124,21 @@
           }
         }
       },
+      "ConfirmPasswordResetRequest": {
+        "required": [
+          "token",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        }
+      },
       "ContactInformationResponse": {
         "required": [
           "fullName",
@@ -6090,6 +6285,17 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "DeleteAccountRequest": {
+        "required": [
+          "currentPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "currentPassword": {
+            "type": "string"
           }
         }
       },
@@ -7770,6 +7976,17 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "RequestPasswordResetRequest": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
           }
         }
       },
