@@ -1,0 +1,61 @@
+# CodeRabbit configuration for BuildCv web.
+#
+# There is a CLAUDE.md at the repo root that carries the invariants a green build can break. Do not
+# repeat a rule it already states: the reviewer's job is to catch what CI cannot, not to lecture
+# about what it can.
+
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: true
+  review_status: true
+  changed_files_summary: true
+  sequence_diagrams: false
+  auto_review:
+    enabled: true
+    drafts: false
+    incremental_reviews: false
+  path_filters:
+    - "!src/lib/api-schema.d.ts"
+    - "!openapi.json"
+    - "!pnpm-lock.yaml"
+    - "!skills-lock.json"
+    - "!.next/**"
+    - "!node_modules/**"
+  path_instructions:
+    - path: "**/*.{ts,tsx}"
+      instructions: |
+        - Everything under src/lib/contracts.ts is hand-written meaning on top of GENERATED types in
+          src/lib/api-schema.d.ts. The generated file and openapi.json are never edited by hand; flag
+          a diff that touches either. Read the Contract invariants section of CLAUDE.md first.
+        - Server-only modules import server-only as their first line.
+        - Route handlers are thin relays by design; a handler that grows business logic is a smell.
+        - Do NOT suggest adding mocks. The e2e suite deliberately mocks nothing and the smoke suite
+          fails on any console error.
+        - tsconfig sets noUncheckedIndexedAccess, so indexing yields T | undefined. Code that ignores
+          that is a real finding, not a nit.
+
+    - path: "**/*.module.css"
+      instructions: |
+        - Styling is CSS Modules with design tokens in src/app/globals.css. Values come from tokens,
+          never inline literals.
+        - Colour contrast must meet WCAG AA: 4.5:1 for text, 3:1 for fills.
+
+    - path: "src/app/api/**"
+      instructions: |
+        - BFF route handlers. Validate what came off the URL, then relay through src/lib/backend.ts.
+          Every authenticated call goes through apiFetch or apiPost; a handler calling the API
+          directly anywhere else is a security finding.
+
+    - path: "e2e/**"
+      instructions: |
+        - The smoke suite fails on any console error; a test that swallows one is hiding the bug the
+          suite exists to catch.
+        - Do NOT suggest mocking the API. A mock is written from the same belief that was wrong.
+
+chat:
+  auto_reply: true
