@@ -104,11 +104,6 @@ function refuse(reason: string): NextResponse {
   );
 }
 
-// A constant rather than a literal in the array below, because `contract:coverage` counts any
-// `/api/` string that follows `(` or `,` as a screen calling a route — and this matcher's path is
-// not a call, it is the BFF itself. The matcher is a closed set of routes this app serves.
-const API_MATCHER = '/api/:path*';
-
 export const config = {
   // The BFF's own routes, for the origin check — pages are not state-changing and static assets are
   // served without ever reaching this.
@@ -117,5 +112,10 @@ export const config = {
   // static: one extra path through a function that returns immediately for everyone who is not
   // signed in, in exchange for a page that no longer renders per visitor on a deployment that scales
   // to zero.
-  matcher: ['/', API_MATCHER],
+  //
+  // The API path comes FIRST, on purpose: Next.js requires these matchers to be literals, and
+  // `contract:coverage` counts any `/api/` literal that follows `(` or `,` as a screen calling a
+  // route. Only the first element of an array avoids both constraints. Order does not change what
+  // matches.
+  matcher: ['/api/:path*', '/'],
 };
