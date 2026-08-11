@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { ApiUnreachableError, deleteAccountExternally, external } from '@/lib/backend';
 import { exchange, INTENT_COOKIE, isConfigured, STATE_COOKIE, VERIFIER_COOKIE } from '@/lib/google';
 import { clearSession, writeSession } from '@/lib/session';
+import { SITE_ORIGIN } from '@/lib/site';
 
 /**
  * Step two: Google sends the visitor back, and this decides whether to believe it.
@@ -25,10 +26,24 @@ export const dynamic = 'force-dynamic';
 /**
  * Back to sign-in with something true and short. The reason is a code, never Google's own text.
  *
- * The origin comes from the request being answered rather than from `SITE_ORIGIN`: this is a relative
- * redirect back to the same page the visitor was just on, so it should follow them to localhost in
- * development. `SITE_ORIGIN` is for the address we PUBLISH — the redirect URI Google matches against —
- * and using it here would bounce a developer out of their own dev server.
+ * `SITE_ORIGIN`, NOT the request's own origin, and the comment that used to sit here argued for the
+ * opposite. It said this was "a relative redirect back to the same page the visitor was just on", so
+ * it should follow a developer to localhost. That reasoning has a hole a proxy drives straight
+ * through: **behind one, the request being answered is not the request the browser made.** Cloudflare
+ * terminates, Azure's ingress forwards, and the socket this process sees is internal — so
+ * `new URL(request.url).origin` is `http://0.0.0.0:3000`, the address the server binds.
+ *
+ * FOUND BY A PERSON SIGNING IN, not by any check here. The whole chain worked — Google verified, the
+ * signature validated, the account was created — and the browser was then sent to
+ * `https://0.0.0.0:3000/resumes`. Every failure path landed there too, which made the diagnostics
+ * built into this file unreachable at exactly the moment they mattered.
+ *
+ * The argument that settles it: **this route can only ever be reached at `SITE_ORIGIN`**, because
+ * that is the `redirect_uri` Google was given and Google matches it exactly. The two describe one
+ * address by construction — and only one of them is right when something sits in front.
+ *
+ * Development is served by the same value: `BUILDCV_SITE_ORIGIN` is read at runtime now, so a local
+ * run sets it and Google's console needs the matching entry anyway.
  */
 function refuse(origin: string, reason: string, logged: string, reference?: string | null): NextResponse {
   console.error(
@@ -66,6 +81,8 @@ export async function GET(request: Request): Promise<NextResponse> {
   if (!isConfigured()) return new NextResponse(null, { status: 404 });
 
   const url = new URL(request.url);
+  // Query parameters only. The ORIGIN of this object is the container's bind address behind a proxy;
+  // every redirect below uses SITE_ORIGIN instead. See `refuse`.
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const denied = url.searchParams.get('error');
@@ -73,9 +90,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   // Pressing "cancel" on Google's consent screen is not a failure and is not logged as one — it is
   // somebody changing their mind, and they get the sign-in page back without an alarming banner.
   if (denied === 'access_denied') {
-    return NextResponse.redirect(new URL('/login', url.origin), { status: 302 });
+    return NextResponse.redirect(new URL('/login', SITE_ORIGIN), { status: 302 });
   }
-  if (denied) return refuse(url.origin, 'google', `google returned ${denied}`);
+  if (denied) return refuse(SITE_ORIGIN, 'google', `google returned ${denied}`);
 
   const jar = request.headers.get('cookie') ?? '';
   const cookie = (name: string): string | null =>
@@ -84,19 +101,19 @@ export async function GET(request: Request): Promise<NextResponse> {
   const expected = cookie(STATE_COOKIE);
   const verifier = cookie(VERIFIER_COOKIE);
 
-  if (!code || !state || !expected || !verifier) return refuse(url.origin, 'incomplete', 'missing code, state or cookies');
+  if (!code || !state || !expected || !verifier) return refuse(SITE_ORIGIN, 'incomplete', 'missing code, state or cookies');
 
   // Compared as whole strings, not by prefix. Both are 32 random bytes minted a moment ago; a length
   // check first keeps the comparison from being the interesting part.
   if (state.length !== expected.length || state !== expected) {
-    return refuse(url.origin, 'state', 'state did not match the cookie — the callback did not come from our redirect');
+    return refuse(SITE_ORIGIN, 'state', 'state did not match the cookie — the callback did not come from our redirect');
   }
 
   let idToken: string;
   try {
     idToken = await exchange(code, verifier);
   } catch (error) {
-    return refuse(url.origin, 'exchange', error instanceof Error ? error.message : 'code exchange failed');
+    return refuse(SITE_ORIGIN, 'exchange', error instanceof Error ? error.message : 'code exchange failed');
   }
 
   // WHAT THIS ROUND TRIP WAS FOR, taken from the cookie this app set when it started — never from
@@ -107,7 +124,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     try {
       deleted = await deleteAccountExternally('google', idToken);
     } catch (error) {
-      if (error instanceof ApiUnreachableError) return refuse(url.origin, 'unreachable', `${error.message} (${error.correlationId})`);
+      if (error instanceof ApiUnreachableError) return refuse(SITE_ORIGIN, 'unreachable', `${error.message} (${error.correlationId})`);
       throw error;
     }
 
@@ -130,7 +147,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         }),
       );
 
-      const back = new URL('/settings', url.origin);
+      const back = new URL('/settings', SITE_ORIGIN);
       back.searchParams.set('deleteFailed', '1');
 
       const reference = deleted.headers.get('x-correlation-id');
@@ -148,7 +165,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // answer 401 and read to the user as a bug rather than as the thing they just asked for.
     await clearSession();
 
-    const done = NextResponse.redirect(new URL('/login?deleted=1', url.origin), { status: 302 });
+    const done = NextResponse.redirect(new URL('/login?deleted=1', SITE_ORIGIN), { status: 302 });
     done.cookies.delete(STATE_COOKIE);
     done.cookies.delete(VERIFIER_COOKIE);
     done.cookies.delete(INTENT_COOKIE);
@@ -159,13 +176,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     outcome = await external('google', idToken);
   } catch (error) {
-    if (error instanceof ApiUnreachableError) return refuse(url.origin, 'unreachable', `${error.message} (${error.correlationId})`);
+    if (error instanceof ApiUnreachableError) return refuse(SITE_ORIGIN, 'unreachable', `${error.message} (${error.correlationId})`);
     throw error;
   }
 
   if (!outcome.ok) {
     return refuse(
-      url.origin,
+      SITE_ORIGIN,
       'rejected',
       `the API refused the identity with ${outcome.status}`,
       outcome.correlationId,
@@ -176,7 +193,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // The CV list, matching what a password sign-in does. Landing on the analysis flow would ask a brand
   // new account for a CV and a posting before it has either.
-  const response = NextResponse.redirect(new URL('/resumes', url.origin), { status: 302 });
+  const response = NextResponse.redirect(new URL('/resumes', SITE_ORIGIN), { status: 302 });
   response.cookies.delete(STATE_COOKIE);
   response.cookies.delete(VERIFIER_COOKIE);
   response.cookies.delete(INTENT_COOKIE);
