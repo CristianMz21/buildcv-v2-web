@@ -3,6 +3,13 @@ import type { MetadataRoute } from 'next';
 import { SITE_ORIGIN } from '@/lib/site';
 
 /**
+ * Rendered per request, because `SITE_ORIGIN` is a deployment-time answer and this file quotes it.
+ * Prerendered, it would bake whichever origin the image was built with — measured: a container told
+ * otherwise kept advertising the production domain.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * The pages worth finding — which is fewer than the pages a crawler is allowed to read.
  *
  * `robots.ts` permits `/login` and `/register`; this does not list them, and the difference is
