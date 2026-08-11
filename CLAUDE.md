@@ -103,21 +103,37 @@ mean **that repo's** CLAUDE.md, not this file.
 `openapi.json` is committed so `next build` never needs a running API. `src/lib/api-schema.d.ts` is
 **generated, never edited**.
 
-> **KNOWN DRIFT, and the one launch item this repo cannot close by itself.** The committed contract is
-> behind the API by three operations: `POST /v1/auth/password-reset`, `POST /v1/auth/password-reset/confirm`
-> and `DELETE /v1/auth/me`. All three are served — confirmed in the API's `AuthEndpoints.cs` — and all
-> three are already called by screens that shipped this week. **The app is right and the file is old.**
+> **THE DRIFT IS CLOSED, and how it was closed is the part worth keeping.** The committed contract was
+> three operations behind the API — `POST /v1/auth/password-reset`, `POST /v1/auth/password-reset/confirm`
+> and `DELETE /v1/auth/me` — all served, all already called by shipped screens. The regeneration was
+> **purely additive: 433 lines inserted, none removed**, which is what turned "the app is right and the
+> file is old" from a claim into a measurement. Nothing the app relied on had disappeared.
 >
-> Fixing it is one command against a running API: `pnpm gen:api`. Until that runs,
-> `pnpm contract:coverage` reports exactly those three and exits 1, which is why it is not yet a CI
-> job — wiring it in is the step immediately after the regeneration, and doing it before would only
-> teach the reader that a red check is normal.
+> **Regenerating needs a running API, and it does not need a database.** `pnpm gen:api` curls
+> `/openapi/v1.json`, and the API serves that from endpoint metadata alone. The obstacles, both
+> measured rather than guessed:
+>
+> ```bash
+> cd ../buildcv-v2/src/BuildCv.Api
+> ASPNETCORE_ENVIRONMENT=Development Persistence__AutoMigrate=false \
+>   dotnet run --no-launch-profile --urls http://localhost:5062
+> ```
+>
+> `--no-launch-profile` alone starts in **Production**, which never loads `appsettings.Development.json`
+> and so fails config validation on `Jwt:SigningKey` and `Encryption:Keys` before serving anything. The
+> dev keys are committed in that file, so nothing needs inventing. And the API applies EF migrations as
+> a startup action in Development, which demands SQL Server — `Persistence__AutoMigrate=false` skips
+> it, and the contract endpoint answers 200 in about eight seconds with no database anywhere.
+>
+> `pnpm contract:coverage` **is now a CI job**, which it could not be while it was red. A check wired in
+> while failing only teaches the reader that a red check is normal.
 
 `pnpm contract:coverage` exists because nothing else asks this question. `gen:types:check` proves the
 types match the contract; `gen:api:check` proves the contract matches a live API and therefore cannot
 run in CI. Neither asks whether the app calls operations the contract describes — and the answer was
 no for three of them, invisibly, because route handlers relay untyped: the path is a string, the body
-passes through, and `tsc` has no opinion about either.
+passes through, and `tsc` has no opinion about either. That is the drift above, and it stayed invisible
+to a green build for as long as it existed.
 
 It checks **both hops of the same seam**: browser → BFF against the route handlers under
 `src/app/api`, and BFF → API against `openapi.json`. The second half found the three; the first half
@@ -343,8 +359,9 @@ running it, or decide knowingly to keep them.
 ## Guardrails
 
 - **`.github/workflows/ci.yml`** runs four jobs. `checks` runs lint, typecheck, `gen:types:check`,
-  audit and build; `image` builds the container and runs `scripts/verify-image.sh` against it; `a11y`
-  opens a browser on the six signed-out screens; `publish` pushes the image to GHCR. It stops there
+  `contract:coverage`, audit and build; `image` builds the container and runs `scripts/verify-image.sh`
+  against it; `a11y` opens a browser on the signed-out screens and the password meter; `publish`
+  pushes the image to GHCR. It stops there
   deliberately: `test:e2e` and `gen:api:check` both need a running `BuildCv.Api` from another
   repository, and a job that mocked one would assert nothing. What the first three have in common is
   that they need no API and no credentials — `image` is the only one that can fail on a property of
