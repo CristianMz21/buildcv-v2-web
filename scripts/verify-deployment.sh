@@ -35,6 +35,20 @@ status() {
   printf '%s' "$code"
 }
 
+# FETCHED INTO A VARIABLE, NEVER PIPED INTO A MATCHER, and that is not a style preference.
+#
+# `curl … | rg -q pattern` under `set -o pipefail` is a trap this script fell into and reported as a
+# production defect: `rg -q` exits the instant it matches, which closes the pipe, which kills curl
+# with SIGPIPE — and pipefail then propagates curl's non-zero status as though nothing matched. The
+# disclosure gate announced "the privacy page does not name Cloudflare" about a page that names it
+# three times. It is timing-dependent, so it passed for days and began failing the moment that page
+# became dynamic and its body arrived a little more slowly.
+#
+# Lowercased once here so every caller can match in lower case without another pipeline.
+body() {
+  curl -s -m 30 "$URL$1" 2>/dev/null | tr '[:upper:]' '[:lower:]'
+}
+
 command -v az > /dev/null || fail "az is required — without it this cannot tell which revision it is measuring"
 
 # ── 0. What am I actually looking at? ─────────────────────────────────────────
@@ -191,7 +205,7 @@ echo "Disclosure:"
 edge=$(curl -sSI -m 30 "$URL/login" 2>/dev/null | tr '[:upper:]' '[:lower:]' | rg -o 'server: *[a-z]+' | sd 'server: *' '' | head -1)
 
 if [ "$edge" = "cloudflare" ]; then
-  if curl -s -m 30 "$URL/legal/privacy" 2>/dev/null | rg -qi 'cloudflare'; then
+  if [[ $(body /legal/privacy) == *cloudflare* ]]; then
     pass "an edge is in front and the privacy page names it"
   else
     fail "traffic passes through $edge and the privacy page does not name it — the published promise is false"
@@ -206,8 +220,8 @@ fi
 # The two are wired to one predicate in the code — `isConfigured()` decides both — so this should be
 # impossible to break. That is precisely why it is asserted: the Cloudflare disclosure was also
 # argued for and written down before it failed, and what failed was not the argument.
-if curl -s -m 30 "$URL/login" 2>/dev/null | rg -q 'Continue with Google'; then
-  if curl -s -m 30 "$URL/legal/privacy" 2>/dev/null | rg -qi 'google'; then
+if [[ $(body /login) == *"continue with google"* ]]; then
+  if [[ $(body /legal/privacy) == *google* ]]; then
     pass "Google sign-in is offered and the privacy page names Google"
   else
     fail "sign-in offers Google and the privacy page does not name it — the published promise is false"
