@@ -63,8 +63,12 @@ reviews:
 
     - path: "**/*.module.css"
       instructions: |
-        - Styling is CSS Modules with design tokens in src/app/globals.css. Values come from tokens,
-          never inline literals.
+        - Styling is CSS Modules with design tokens in src/app/globals.css. Colours and fonts MUST
+          come from the tokens defined there (--bg, --surface, --border, --fg, --primary, --on-primary,
+          --good/warn/bad, --font) — never inline literals.
+        - There are NO tokens for layout, spacing, radius, transition or outline. Literals for those
+          are fine and are how the existing design is written; flag only an inconsistency between
+          pages that should share geometry (e.g. the two skip links), not the literals themselves.
         - Colour contrast must meet WCAG AA: 4.5:1 for text, 3:1 for fills.
 
     - path: "src/app/api/**"
