@@ -26,13 +26,26 @@ reviews:
     drafts: false
     incremental_reviews: false
   path_filters:
-    - "!src/lib/api-schema.d.ts"
-    - "!openapi.json"
+    # NOT excluded: src/lib/api-schema.d.ts and openapi.json are generated and never hand-edited, so
+    # a diff that touches either is exactly what must NOT pass silently — see the exact-path
+    # instructions below. Everything else in this list is genuinely noise.
     - "!pnpm-lock.yaml"
     - "!skills-lock.json"
     - "!.next/**"
     - "!node_modules/**"
   path_instructions:
+    - path: "src/lib/api-schema.d.ts"
+      instructions: |
+        - GENERATED FILE — never edited by hand. ANY change to it must be flagged: it only ever changes
+          through `pnpm gen:types`, and a hand edit that widens a type to make tsc agree with a screen
+          is the exact drift the repo's contract checks exist to catch.
+    - path: "openapi.json"
+      instructions: |
+        - GENERATED CONTRACT — the committed source of truth the typed client is generated from. It
+          only ever changes through `pnpm gen:api` against a running BuildCv.Api. A hand edit here
+          would silently redefine what the app is allowed to call; flag any change and demand it was
+          regenerated.
+
     - path: "**/*.{ts,tsx}"
       instructions: |
         - Everything under src/lib/contracts.ts is hand-written meaning on top of GENERATED types in
