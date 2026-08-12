@@ -26,6 +26,11 @@ overrides:
   # Inherited libvips CVEs. Unreachable in this app twice over: no <Image> is rendered, and the native
   # binding is never built (see allowBuilds above). Raised anyway so an audit reports what it means.
   sharp: '>=0.35.0'
+# LICENSE NOTE: sharp (Apache-2.0) pulls the prebuilt @img/sharp-libvips-* binaries, which are
+# LGPL-3.0-or-later. Verified by building: the standalone trace ships only next, react and
+# typescript, so libvips never reaches the runtime image — it exists in the dev/CI tree but is not
+# distributed. If this app ever renders an <Image>, re-run `pnpm build` and check the standalone
+# node_modules before trusting this note.
 # js-yaml is deliberately NOT overridden, and this is the note that stops someone adding it back.
 #
 # It carries a high advisory — quadratic CPU parsing `!!omap` — patched in 4.3.1, and raising it looks
