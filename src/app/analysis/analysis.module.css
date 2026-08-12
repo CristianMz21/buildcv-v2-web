@@ -642,8 +642,8 @@
 
 .noticeInfo {
   background: var(--primary-bg);
-  color: #1e3a8a;
-  border: 1px solid #dbeafe;
+  color: var(--primary-fg);
+  border: 1px solid var(--primary-border);
 }
 
 .noticeWarn {

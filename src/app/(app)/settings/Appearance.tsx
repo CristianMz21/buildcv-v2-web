@@ -41,7 +41,15 @@ export function Appearance() {
   const [choice, setChoice] = useState<Choice | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    // `localStorage` can refuse to answer (private mode, disabled storage) — `ThemeScript` already
+    // defends the read it makes at paint time, and the choice picker has to defend both of its calls
+    // or a visitor with storage disabled gets an uncaught error instead of the system theme.
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(STORAGE_KEY);
+    } catch {
+      saved = null;
+    }
     setChoice(saved === 'light' || saved === 'dark' ? saved : 'system');
   }, []);
 
@@ -50,7 +58,13 @@ export function Appearance() {
     apply(next);
     // Written rather than removed even for "system", so the choice is a decision on this machine
     // rather than the absence of one — otherwise clearing it and never having set it look identical.
-    localStorage.setItem(STORAGE_KEY, next);
+    // If the write fails, the current document still shows the selection; only its persistence is lost.
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // The choice already took effect for this document; there is nowhere sensible to report a
+      // failure the visitor cannot act on, and throwing would take the whole settings screen down.
+    }
   }
 
   return (

@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Applies a saved theme choice before the browser paints anything.
  *
