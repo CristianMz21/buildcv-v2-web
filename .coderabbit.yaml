@@ -36,9 +36,12 @@ reviews:
   path_instructions:
     - path: "src/lib/api-schema.d.ts"
       instructions: |
-        - GENERATED FILE — never edited by hand. ANY change to it must be flagged: it only ever changes
-          through `pnpm gen:types`, and a hand edit that widens a type to make tsc agree with a screen
-          is the exact drift the repo's contract checks exist to catch.
+        - GENERATED FILE — never edited by hand. It regenerates two ways: `pnpm gen:types` from the
+          COMMITTED openapi.json, or `pnpm gen:api` against a running BuildCv.Api (which also
+          refreshes openapi.json). Any change must be traceable to one of those; demand the matching
+          validation (`pnpm gen:types:check` or `pnpm gen:api:check`) and flag a hand edit that only
+          widens a type to make tsc agree with a screen — that is the drift the contract checks exist
+          to catch.
     - path: "openapi.json"
       instructions: |
         - GENERATED CONTRACT — the committed source of truth the typed client is generated from. It
