@@ -1,13 +1,12 @@
-import { FlatCompat } from '@eslint/eslintrc';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import tseslint from 'typescript-eslint';
-
-const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
 
 /**
  * The ESLint CLI rather than `next lint`, which is deprecated and removed in Next.js 16.
  *
- * `eslint-config-next` still ships as eslintrc-shaped config, so it comes in through `FlatCompat`;
- * that is the migration path Next documents, not a workaround.
+ * `eslint-config-next` ships flat config as of v16, so it is spread directly rather than passed
+ * through `FlatCompat` — which is the eslintrc bridge and cannot digest a config that references
+ * a plugin's own `configs` map (the circular structure that made lint throw in 16.3.0).
  */
 export default tseslint.config(
   {
@@ -23,13 +22,21 @@ export default tseslint.config(
       'playwright-report/**',
     ],
   },
-  ...compat.extends('next/core-web-vitals'),
+  ...nextCoreWebVitals,
   ...tseslint.configs.recommended,
   {
     rules: {
       // Unused arguments named with a leading underscore are the repo's way of saying "this position
       // exists because the signature requires it".
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      // Fires on the repo's data-loading pattern: an async `useCallback` called from an effect, whose
+      // setState runs only after `await fetch`. The rule's own docs call that valid — "subscribe for
+      // updates from an external system, calling setState in a callback" — but the compiler-based
+      // analysis does not trace the `await` boundary through a `useCallback` and flags it anyway
+      // (probed: the identical async body inline passes, wrapped in useCallback it fails). It also
+      // flags the three reads that can only happen in an effect — `localStorage`, `sessionStorage`,
+      // `window.location` — because the server has none of them. Revisit on a plugin upgrade.
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 );
